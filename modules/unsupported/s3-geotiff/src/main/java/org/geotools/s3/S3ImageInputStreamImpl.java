@@ -26,6 +26,7 @@ import javax.imageio.stream.ImageInputStreamImpl;
 import org.geotools.s3.cache.CacheEntryKey;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
@@ -79,13 +80,11 @@ public class S3ImageInputStreamImpl extends ImageInputStreamImpl {
         }
 
         AmazonS3 s3Client = this.getS3Client();
-        S3Object object = s3Client.getObject(new GetObjectRequest(this.bucket, this.key));
-        ObjectMetadata meta = object.getObjectMetadata();
-
-        this.fileName = nameFromKey(this.key);
+        ObjectMetadata meta = s3Client.getObjectMetadata(new GetObjectMetadataRequest(this.bucket, this.key));
         this.length = meta.getContentLength();
+        
+        this.fileName = nameFromKey(this.key);
         this.cacheBlockSize = CacheManagement.DEFAULT.getCacheConfig().getChunkSizeBytes();
-
     }
 
     private String nameFromKey(String key) {

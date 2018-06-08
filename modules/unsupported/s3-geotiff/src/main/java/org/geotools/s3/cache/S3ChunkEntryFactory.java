@@ -18,6 +18,7 @@ package org.geotools.s3.cache;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
 import java.util.logging.Level;
@@ -59,39 +60,42 @@ public class S3ChunkEntryFactory implements CacheEntryFactory, CacheLoader {
         CacheEntryKey entryKey = (CacheEntryKey)key;
         int nBytes;
         byte[] buffer = new byte[cacheBlockSize];
-        S3ObjectInputStream stream =
+        try (S3Object object =
             this.initStream((long) entryKey.getBlock() * (long) this.cacheBlockSize,
-                entryKey.getBucket(), entryKey.getKey(), entryKey.getBlockSize(), connector.getS3Client());
-        if (stream == null) {
-            throw new RuntimeException("Unable to instantiate S3 stream. See logs for details.");
-        }
-        int readLength = this.cacheBlockSize;
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        while (readLength > 0) {
-            nBytes = stream.read(buffer, 0, readLength);
-
-            if (nBytes > 0) {
-                out.write(buffer, 0, nBytes);
-                readLength -= nBytes;
-            } else {
-                break;
+                entryKey.getBucket(), entryKey.getKey(), entryKey.getBlockSize(), connector.getS3Client())) {
+            try (InputStream stream = object.getObjectContent()) {
+                if (stream == null) {
+                    throw new RuntimeException("Unable to instantiate S3 stream. See logs for details.");
+                }
+                int readLength = this.cacheBlockSize;
+                
+                try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    while (readLength > 0) {
+                        nBytes = stream.read(buffer, 0, readLength);
+            
+                        if (nBytes > 0) {
+                            out.write(buffer, 0, nBytes);
+                            readLength -= nBytes;
+                        } else {
+                            break;
+                        }
+                    }
+                    val = out.toByteArray();
+                }
             }
+    
         }
-
-        val = out.toByteArray();
-        out.close();
-        stream.close();
 
         return val;
     }
 
-    private S3ObjectInputStream initStream(long offset, String bucket, String key, int blockSize, AmazonS3 s3Client) {
+    private S3Object initStream(long offset, String bucket, String key, int blockSize, AmazonS3 s3Client) {
         try {
             S3Object object = s3Client.getObject(
                 (new GetObjectRequest(bucket, key))
                     .withRange(offset, offset + blockSize));
 
-            return object.getObjectContent();
+            return object;
         } catch (Exception e) {
             LOGGER.warning(e.getMessage());
         }
