@@ -50,7 +50,7 @@ public class GeographicHandlerFactory implements ProjectionHandlerFactory {
                     if(CRS.getAxisOrder(sourceCrs) == AxisOrder.NORTH_EAST) {
                         validArea = new ReferencedEnvelope(MIN_LATITUDE, MAX_LATITUDE, Float.MAX_VALUE, -Float.MAX_VALUE, horizontalSourceCrs);
                     } else {
-                        validArea = new ReferencedEnvelope(Float.MAX_VALUE, -Float.MAX_VALUE, MIN_LATITUDE, MAX_LATITUDE, horizontalSourceCrs);
+                        validArea = new ReferencedEnvelope(Integer.MAX_VALUE, -Integer.MAX_VALUE, MIN_LATITUDE, MAX_LATITUDE, horizontalSourceCrs);
                     }
                 }
             }

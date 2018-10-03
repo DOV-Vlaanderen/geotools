@@ -33,8 +33,8 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
  */
 public class MercatorHandlerFactory implements ProjectionHandlerFactory {
 
-    private static final ReferencedEnvelope VALID_AREA = new ReferencedEnvelope(-Double.MAX_VALUE,
-            Double.MAX_VALUE, -85, 85,
+    private static final ReferencedEnvelope VALID_AREA = new ReferencedEnvelope(
+            -Integer.MAX_VALUE, Integer.MAX_VALUE, -85, 85,
             DefaultGeographicCRS.WGS84);
 
     public ProjectionHandler getHandler(ReferencedEnvelope renderingEnvelope, CoordinateReferenceSystem sourceCrs, boolean wrap, int maxWraps) throws FactoryException {

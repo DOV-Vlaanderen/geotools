@@ -43,8 +43,8 @@ public class WorldVanDerGrintenIHandlerFactory implements ProjectionHandlerFacto
         MapProjection mapProjection = CRS.getMapProjection(renderingEnvelope
                 .getCoordinateReferenceSystem());
         if (mapProjection instanceof WorldVanDerGrintenI) {
-            ReferencedEnvelope validArea = new ReferencedEnvelope(-Double.MAX_VALUE,
-                    Double.MAX_VALUE, -90, 90, DefaultGeographicCRS.WGS84);
+            ReferencedEnvelope validArea = new ReferencedEnvelope(-Integer.MAX_VALUE,
+                    Integer.MAX_VALUE, -90, 90, DefaultGeographicCRS.WGS84);
 
             return new ProjectionHandler(sourceCrs, validArea, renderingEnvelope);
         }
