@@ -16,6 +16,9 @@
  */
 package org.geotools.s3.cache;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.geotools.s3.S3Connector;
 
 import net.sf.ehcache.*;
@@ -35,6 +38,8 @@ public enum CacheManagement {
     public static final String DEFAULT_CACHE = "default_cache";
     private final CacheManager manager;
     private final CacheConfig config;
+
+    private static final Logger LOGGER = Logger.getLogger("S3");
 
     CacheManagement() {
         CacheConfig config = CacheConfig.getDefaultConfig();
@@ -79,6 +84,7 @@ public enum CacheManagement {
         } catch (Throwable e) {
             //try to make absolutely sure that the lock has been released
             cache.put(new Element(key, null));
+            LOGGER.log(Level.SEVERE, "Unexpected error retrieving chunk in S3 CacheManagement", e);
             throw e;
         }
     }
