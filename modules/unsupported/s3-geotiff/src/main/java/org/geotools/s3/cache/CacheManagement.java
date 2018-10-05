@@ -73,7 +73,14 @@ public enum CacheManagement {
 
     public byte[] getChunk(CacheEntryKey key, S3Connector connector) {
         key.setConnector(connector);
-        return (byte[]) this.manager.getEhcache(DEFAULT_CACHE).get(key).getObjectValue();
+        Ehcache cache = this.manager.getEhcache(DEFAULT_CACHE);
+        try {
+            return (byte[]) cache.get(key).getObjectValue();
+        } catch (Throwable e) {
+            //try to make absolutely sure that the lock has been released
+            cache.put(new Element(key, null));
+            throw e;
+        }
     }
 
     public CacheConfig getCacheConfig() {
