@@ -1,1 +1,2 @@
 org.geotools.filter.expression.FeaturePropertyAccessorFactory
+org.geotools.filter.expression.MapPropertyAccessorFactory

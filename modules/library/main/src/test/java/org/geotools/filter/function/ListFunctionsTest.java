@@ -68,21 +68,4 @@ public class ListFunctionsTest {
         assertTrue(value instanceof List);
         assertEquals(Lists.newArrayList(2.0, 4.0, 6.0, 8.0), ((List<?>) value));
     }
-
-    @Test
-    public void testLiterate() {
-        List<Integer> list1 = Lists.newArrayList(1, 2, 3, 4);
-        List<Integer> list2 = Lists.newArrayList(4, 3, 2, 1);
-
-        Function exp =
-                ff.function(
-                        "literate",
-                        ff.property("."),
-                        ff.multiply(
-                                ff.function("litem", ff.literal(list1), ff.property(".")),
-                                ff.function("litem", ff.literal(list2), ff.property("."))));
-        Object value = exp.evaluate(4);
-        assertTrue(value instanceof List);
-        assertEquals(Lists.newArrayList(4.0, 6.0, 6.0, 4.0), ((List<?>) value));
-    }
 }

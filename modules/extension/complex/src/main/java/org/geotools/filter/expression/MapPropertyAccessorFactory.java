@@ -15,19 +15,18 @@
  *    Lesser General Public License for more details.
  */
 
-package org.geotools.data.complex.filter;
+package org.geotools.filter.expression;
 
 import java.util.Map;
 
 import org.apache.commons.jxpath.JXPathContext;
 import org.geotools.factory.Hints;
 import org.geotools.feature.IllegalAttributeException;
-import org.geotools.filter.expression.PropertyAccessor;
-import org.geotools.filter.expression.PropertyAccessorFactory;
 
 /**
- * A {@link PropertyAccessorFactory} that returns a {@link PropertyAccessor} capable of evaluating
- * single attribute names from a {@link Map}.
+ * A {@link org.geotools.filter.expression.PropertyAccessorFactory} that returns a {@link
+ * org.geotools.filter.expression.PropertyAccessor} capable of evaluating single attribute names
+ * from a {@link Map}.
  * 
  * @author Gabriel Roldan
  * 

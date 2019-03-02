@@ -14,12 +14,14 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *    Lesser General Public License for more details.
  */
-package org.geotools.filter.function;
+package org.geotools.data.complex.filter;
 
 import static org.geotools.filter.capability.FunctionNameImpl.parameter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.geotools.filter.FunctionExpressionImpl;
 import org.geotools.filter.capability.FunctionNameImpl;
 import org.opengis.filter.capability.FunctionName;
@@ -41,12 +43,15 @@ public class FilterFunction_literate extends FunctionExpressionImpl {
     public Object evaluate(Object feature) {
         Integer size = getExpression(0).evaluate(feature, Integer.class);
         if (size == null) {
-            return null;
+            throw new IllegalArgumentException("literate function requires non-null size");
         }
 
         List<Object> result = new ArrayList<Object>();
         for (int i = 0; i < size; i++) {
-            result.add(getExpression(1).evaluate(i));
+            Map<String, Object> map = new HashMap<>();
+            map.put("outer", feature);
+            map.put("index", i);
+            result.add(getExpression(1).evaluate(map));
         }
 
         return result;
