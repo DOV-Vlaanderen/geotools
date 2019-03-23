@@ -418,7 +418,7 @@ public class ParserHandler extends DefaultHandler {
                                 Schemas.validateImportsIncludes(location,locators,resolvers);
                             } 
                             catch (IOException e) {
-                                throw (SAXException) new SAXException( "error validating" ).initCause(e);
+                                throw (SAXException) new SAXException( "error validating", e);
                             }    
                         }
                         
@@ -431,7 +431,7 @@ public class ParserHandler extends DefaultHandler {
 
                             if (isStrict()) {
                                 //strict mode, throw exception
-                                throw (SAXException) new SAXException(msg).initCause(e);
+                                throw (SAXException) new SAXException(msg, e);
                             }
                         }
                     }
@@ -487,7 +487,7 @@ public class ParserHandler extends DefaultHandler {
                     try {
                         schemas = new XSDSchema[] { config.getXSD().getSchema() };
                     } catch (IOException e) {
-                        throw (SAXException) new SAXException().initCause(e);
+                        throw new SAXException(e);
                     }
                 }
             }
