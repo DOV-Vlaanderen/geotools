@@ -17,11 +17,12 @@
 package org.geotools.sld.bindings;
 
 import org.picocontainer.MutablePicoContainer;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 import java.net.URI;
+import java.net.URL;
+
 import javax.xml.namespace.QName;
 import org.geotools.styling.ExternalGraphic;
+import org.geotools.styling.ResourceLocator;
 import org.geotools.styling.StyleFactory;
 import org.geotools.util.Converters;
 import org.geotools.xml.*;
@@ -59,9 +60,13 @@ import org.geotools.xml.*;
  */
 public class SLDExternalGraphicBinding extends AbstractComplexBinding {
     protected StyleFactory styleFactory;
+    
+    protected ResourceLocator resourceLocator;
 
-    public SLDExternalGraphicBinding(StyleFactory styleFactory) {
+    public SLDExternalGraphicBinding(StyleFactory styleFactory, 
+            ResourceLocator resourceLocator) {        
         this.styleFactory = styleFactory;
+        this.resourceLocator = resourceLocator;
     }
 
     /**
@@ -113,7 +118,12 @@ public class SLDExternalGraphicBinding extends AbstractComplexBinding {
         // of applying this bandaid
         URI uri = Converters.convert( node.getChildValue("OnlineResource"), URI.class );
         String format = (String) node.getChildValue("Format");
-
-        return styleFactory.createExternalGraphic(uri.toURL(), format);
+        
+        URL url = resourceLocator.locateResource(uri.toString());
+        if (url == null) {
+            return styleFactory.createExternalGraphic(uri.toString(), format);
+        } else {
+            return styleFactory.createExternalGraphic(url, format);
+        }
     }
 }
