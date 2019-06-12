@@ -53,7 +53,9 @@ public enum CacheManagement {
                                     new PersistenceConfiguration()
                                             .strategy(
                                                     PersistenceConfiguration.Strategy
-                                                            .LOCALTEMPSWAP));
+                                                            .LOCALTEMPSWAP))
+                            .timeToIdleSeconds(config.getTimeToIdle())
+                            .timeToLiveSeconds(config.getTimeToLive());
             cacheConfig.defaultCache(defaultCacheConfiguration);
 
             if (config.isUseDiskCache()) {
