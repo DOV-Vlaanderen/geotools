@@ -16,7 +16,7 @@
   <parent>
     <groupId>org.geotools</groupId>
     <artifactId>unsupported</artifactId>
-    <version>21.0-dov-0.2</version>
+    <version>21.0-dov-0.3-SNAPSHOT</version>
   </parent>
 
   <!-- =========================================================== -->
