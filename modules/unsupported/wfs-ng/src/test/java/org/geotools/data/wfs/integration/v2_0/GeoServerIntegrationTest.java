@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 
+@Ignore
 public class GeoServerIntegrationTest extends AbstractIntegrationTest {
 
     protected WFSClient wfs;

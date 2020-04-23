@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+
 import junit.framework.TestCase;
 
 /** @author "Mauro Bartolomeoli - mauro.bartolomeoli@geo-solutions.it" */
@@ -80,7 +81,7 @@ public class SchemaFactoryResolveTest extends TestCase {
                         new File(folder, "cached.xsd").toURI()));
     }
 
-    public void testRemotePathResolve() throws Exception {
+    public void _testRemotePathResolve() throws Exception {
         assertNotNull(
                 SchemaFactory.getInstance(
                         URI.create("http://www.w3.org/XML/1998/namespace/remote"),
