@@ -2180,6 +2180,11 @@ public final class CRS {
     public static AxisOrder getAxisOrder(CoordinateReferenceSystem crs, boolean useBaseGeoCRS) {
         CoordinateSystem cs = null;
 
+        if (crs instanceof CompoundCRS) {
+            // the first one should contain the EAST and NORTH if applicable
+            crs = ((CompoundCRS) crs).getCoordinateReferenceSystems().get(0);
+        }
+
         if (crs instanceof ProjectedCRS) {
             cs =
                     !useBaseGeoCRS
