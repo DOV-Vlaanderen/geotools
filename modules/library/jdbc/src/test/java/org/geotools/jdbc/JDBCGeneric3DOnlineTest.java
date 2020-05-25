@@ -374,7 +374,10 @@ public abstract class JDBCGeneric3DOnlineTest extends JDBCTestSupport {
 
         // check we got the right 2d component
         Envelope expected = new Envelope(1, 5, 0, 4);
-        assertEquals(expected, env);
+        assertEquals(expected.getMinX(), env.getMinX(), 0.05);
+        assertEquals(expected.getMaxX(), env.getMaxX(), 0.05);
+        assertEquals(expected.getMinY(), env.getMinY(), 0.05);
+        assertEquals(expected.getMaxY(), env.getMaxY(), 0.05);
 
         // check the srs the expected one
         assertEquals(CRS.getHorizontalCRS(crs), env.getCoordinateReferenceSystem());

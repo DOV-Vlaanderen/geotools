@@ -22,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import org.geotools.jdbc.JDBCCompound3DTestSetup;
+import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.JDBCTestSetup;
 import org.geotools.util.Version;
 
@@ -84,6 +85,8 @@ public class PostGISCompound3DTestSetup extends JDBCCompound3DTestSetup {
                 "INSERT INTO \"lineCompound3d\" (\"id\",\"geom\",\"name\") VALUES (1,"
                         + "ST_GeomFromText('LINESTRING(3 0 1, 3 2 2, 3 3 3, 3 4 5)', 7415),"
                         + "'l2')");
+
+        run("ANALYZE \"lineCompound3d\"");
     }
 
     @Override
@@ -131,5 +134,13 @@ public class PostGISCompound3DTestSetup extends JDBCCompound3DTestSetup {
     protected void dropPointCompound3DTable() throws Exception {
         run("DELETE FROM  GEOMETRY_COLUMNS WHERE F_TABLE_NAME = 'pointCompound3d'");
         run("DROP TABLE \"pointCompound3d\"");
+    }
+
+    @Override
+    protected void setUpDataStore(JDBCDataStore dataStore) {
+        super.setUpDataStore(dataStore);
+
+        // the tests assume non estimated extents
+        ((PostGISDialect) dataStore.getSQLDialect()).setEstimatedExtentsEnabled(true);
     }
 }

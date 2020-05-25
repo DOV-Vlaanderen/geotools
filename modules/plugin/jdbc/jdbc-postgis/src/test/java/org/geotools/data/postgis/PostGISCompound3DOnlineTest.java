@@ -17,12 +17,11 @@
 package org.geotools.data.postgis;
 
 import org.geotools.jdbc.JDBCCompound3DOnlineTest;
-import org.geotools.jdbc.JDBCCompound3DTestSetup;
 
 public class PostGISCompound3DOnlineTest extends JDBCCompound3DOnlineTest {
 
     @Override
-    protected JDBCCompound3DTestSetup createTestSetup() {
+    protected PostGISCompound3DTestSetup createTestSetup() {
         return new PostGISCompound3DTestSetup(new PostGISTestSetup());
     }
 }
