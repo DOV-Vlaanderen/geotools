@@ -16,7 +16,7 @@
   <parent>
     <groupId>org.geotools.jdbc</groupId>
     <artifactId>gt-jdbc</artifactId>
-    <version>21.0-dov-0.6-SNAPSHOT</version>
+    <version>21.0-dov-0.6</version>
     <relativePath>../../plugin/jdbc/pom.xml</relativePath>
   </parent>
 
