@@ -661,11 +661,6 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             ignoreXlinkHref = true;
         }
         if (isNestedFeature) {
-            if (values == null) {
-                // polymorphism use case, if the value doesn't match anything, don't encode
-                return null;
-            }
-            // get built feature based on link value
             if (values instanceof Collection) {
                 ArrayList<Attribute> nestedFeatures =
                         new ArrayList<Attribute>(((Collection) values).size());
@@ -819,7 +814,21 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
                             clientPropsMappings,
                             ignoreXlinkHref);
         }
-        if (instance != null && attMapping.encodeIfEmpty()) {
+        if (attMapping.encodeIfEmpty()) {
+            if (instance == null) {
+                instance =
+                        setAttributeContent(
+                                target,
+                                xpath,
+                                values,
+                                id,
+                                targetNodeType,
+                                false,
+                                sourceExpression,
+                                source,
+                                clientPropsMappings,
+                                ignoreXlinkHref);
+            }
             instance.getDescriptor().getUserData().put("encodeIfEmpty", attMapping.encodeIfEmpty());
         }
         return instance;
