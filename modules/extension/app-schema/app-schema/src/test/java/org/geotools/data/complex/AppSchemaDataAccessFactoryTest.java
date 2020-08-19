@@ -184,4 +184,23 @@ public class AppSchemaDataAccessFactoryTest extends AppSchemaTestSupport {
         assertNotNull(factory.getImplementationHints());
         assertEquals(0, factory.getImplementationHints().size());
     }
+
+    /**
+     * Test that an include can be re-used without throwing a duplicate mapping error
+     *
+     * @throws IOException
+     */
+    @Test
+    public void testSharedInclude() throws IOException {
+        URL resource = getClass().getResource("/test-data/GeologicUnit.xml");
+        params.put("url", resource);
+        DataAccess<FeatureType, Feature> ds = factory.createDataStore(params);
+        assertNotNull(ds);
+        resource = getClass().getResource("/test-data/EarthResourceToGeologicUnit.xml");
+        params.put("url", resource);
+        DataAccess<FeatureType, Feature> ds2 = factory.createDataStore(params);
+        assertNotNull(ds);
+        ds.dispose();
+        ds2.dispose();
+    }
 }

@@ -33,6 +33,7 @@ import org.geotools.data.complex.config.XMLConfigDigester;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.Feature;
 import org.opengis.feature.type.FeatureType;
+import org.opengis.feature.type.Name;
 
 /**
  * DataStoreFactory for ComplexDataStore.
@@ -98,6 +99,21 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
         }
 
         mappings = AppSchemaDataAccessConfigurator.buildMappings(config, sourceDataStoreMap);
+
+        if (hidden) { // if this is an included datastore, we will ignore if it has already been
+            // loaded
+            boolean alreadyLoaded = true;
+            for (FeatureTypeMapping mapping : mappings) {
+                Name name = mapping.getMappingName();
+                if (name == null) {
+                    name = mapping.getTargetFeature().getName();
+                }
+                alreadyLoaded = alreadyLoaded && DataAccessRegistry.hasName(name);
+            }
+            if (alreadyLoaded) {
+                return null;
+            }
+        }
 
         dataStore = new AppSchemaDataAccess(mappings, hidden);
 
