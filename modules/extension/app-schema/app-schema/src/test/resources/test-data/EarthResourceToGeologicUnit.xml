@@ -50,7 +50,7 @@
 	</targetTypes>
 	<typeMappings>
 		<FeatureTypeMapping>
-		    <mappingName>earthResourceGeologicUnit</mappingName>
+		    <mappingName>myGeologicUnit</mappingName>
 			<sourceDataStore>EarthResource</sourceDataStore>
 			<sourceType>EarthResource</sourceType>
 			<targetElement>gsml:GeologicUnit</targetElement>
