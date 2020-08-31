@@ -184,4 +184,21 @@ public class AppSchemaDataAccessFactoryTest extends AppSchemaTestSupport {
         assertNotNull(factory.getImplementationHints());
         assertEquals(0, factory.getImplementationHints().size());
     }
+
+    /**
+     * Test that a mapping file with include can be loaded twice without throwing a duplicate
+     * mapping error (meaning that the registry must dispose of it properly)
+     *
+     * @throws IOException
+     */
+    @Test
+    public void testCreateFeatureChainedTwice() throws IOException {
+        URL resource = getClass().getResource("/test-data/GeologicUnit.xml");
+        params.put("url", resource);
+        DataAccess<FeatureType, Feature> ds = factory.createDataStore(params);
+        assertNotNull(ds);
+        ds.dispose();
+        ds = factory.createDataStore(params);
+        assertNotNull(ds);
+    }
 }
