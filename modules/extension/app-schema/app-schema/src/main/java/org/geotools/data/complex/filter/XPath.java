@@ -370,7 +370,7 @@ public class XPath extends XPathUtil {
                                 index,
                                 parent,
                                 null,
-                                isXlinkRef);
+                                false);
             }
         }
         throw new IllegalStateException();
