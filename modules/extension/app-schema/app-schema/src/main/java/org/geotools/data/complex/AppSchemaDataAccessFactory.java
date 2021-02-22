@@ -74,7 +74,8 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
         final Set<AppSchemaDataAccess> registeredAppSchemaStores =
                 new HashSet<AppSchemaDataAccess>();
         try {
-            return createDataStore(params, false, new DataAccessMap(), registeredAppSchemaStores);
+            return createDataStore(
+                    params, false, new DataAccessMap(), registeredAppSchemaStores, null);
         } catch (Exception ex) {
             // dispose every already registered included datasource
             for (AppSchemaDataAccess appSchemaDataAccess : registeredAppSchemaStores) {
@@ -88,7 +89,8 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
             Map params,
             boolean hidden,
             DataAccessMap sourceDataStoreMap,
-            final Set<AppSchemaDataAccess> registeredAppSchemaStores)
+            final Set<AppSchemaDataAccess> registeredAppSchemaStores,
+            URL parentUrl)
             throws IOException {
         Set<FeatureTypeMapping> mappings;
         AppSchemaDataAccess dataStore;
@@ -109,12 +111,19 @@ public class AppSchemaDataAccessFactory implements DataAccessFactory {
             // and avoid creating the same data store twice (this enables feature iterators sharing
             // the same transaction to re-use the connection instead of opening a new one for each
             // joined type)
-            createDataStore(params, true, sourceDataStoreMap, registeredAppSchemaStores);
+            createDataStore(
+                    params,
+                    true,
+                    sourceDataStoreMap,
+                    registeredAppSchemaStores,
+                    parentUrl == null ? configFileUrl : parentUrl);
         }
 
         mappings = AppSchemaDataAccessConfigurator.buildMappings(config, sourceDataStoreMap);
 
         dataStore = new AppSchemaDataAccess(mappings, hidden);
+        dataStore.url = configFileUrl;
+        dataStore.parentUrl = parentUrl;
         registeredAppSchemaStores.add(dataStore);
         return dataStore;
     }
