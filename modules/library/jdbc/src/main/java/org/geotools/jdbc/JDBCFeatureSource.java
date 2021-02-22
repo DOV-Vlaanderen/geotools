@@ -192,6 +192,10 @@ public class JDBCFeatureSource extends ContentFeatureSource {
                 columns = getColumnMetadata(cx, databaseSchema, tableName, dialect);
             }
 
+            if (columns.size() == 0) {
+                throw new IOException("Error occurred building feature type: empty attributes.");
+            }
+
             for (ColumnMetadata column : columns) {
                 String name = column.name;
 
