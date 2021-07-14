@@ -705,7 +705,16 @@ public abstract class ContentFeatureSource implements SimpleFeatureSource {
                     throw new IOException("Cannot reproject data, the source CRS is not available");
                 } else if (!sourceCRS.equals(targetCRS)) {
                     try {
-                        reader = new ReprojectFeatureReader(reader, targetCRS);
+                        reader =
+                                new ReprojectFeatureReader(
+                                        reader,
+                                        targetCRS,
+                                        (Boolean)
+                                                query.getHints()
+                                                        .getOrDefault(
+                                                                Query
+                                                                        .REPROJECT_ONLY_DEFAULT_GEOMETRY,
+                                                                false));
                     } catch (Exception e) {
                         if (e instanceof IOException) throw (IOException) e;
                         else

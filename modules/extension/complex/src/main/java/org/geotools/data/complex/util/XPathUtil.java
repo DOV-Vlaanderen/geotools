@@ -25,6 +25,8 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
+import org.geotools.data.complex.util.XPathUtil.Step;
+import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.feature.type.Types;
 import org.geotools.util.CheckedArrayList;
 import org.geotools.util.SuppressFBWarnings;
@@ -407,8 +409,25 @@ public class XPathUtil {
             final String xpathExpression,
             final NamespaceSupport namespaces)
             throws IllegalArgumentException {
+        return steps(root.getName(), xpathExpression, namespaces);
+    }
 
-        if (root == null) {
+    /**
+     * Returns the list of stepts in <code>xpathExpression</code> by cleaning it up removing
+     * unnecessary elements.
+     *
+     * <p>
+     *
+     * @param rootName non null name of the root attribute, Used to ignore the first step in
+     *     xpathExpression if the expression's first step is named as rootName.
+     * @throws IllegalArgumentException if <code>xpathExpression</code> has no steps or it isn't a
+     *     valid XPath expression against <code>type</code>.
+     */
+    public static StepList steps(
+            final Name rootName, final String xpathExpression, final NamespaceSupport namespaces)
+            throws IllegalArgumentException {
+
+        if (rootName == null) {
             throw new NullPointerException("root");
         }
 
@@ -425,7 +444,7 @@ public class XPathUtil {
         StepList steps = new StepList();
 
         if ("/".equals(expression)) {
-            expression = root.getName().getLocalPart();
+            expression = rootName.getLocalPart();
         }
 
         if (expression.startsWith("/")) {
@@ -471,7 +490,7 @@ public class XPathUtil {
                     isXmlAttribute = true;
                     stepName = stepName.substring(1);
                 }
-                QName qName = deglose(stepName, root, namespaces, isXmlAttribute);
+                QName qName = deglose(stepName, rootName, namespaces, isXmlAttribute);
                 if (predicate == null) {
                     steps.add(new Step(qName, index, isXmlAttribute, isIndexed));
                 } else {
@@ -501,9 +520,8 @@ public class XPathUtil {
         // than the root node itself, and the root node is present, remove the
         // root
         // node as it is redundant
-        if (root != null && steps.size() > 1) {
+        if (rootName != null && steps.size() > 1) {
             Step step = (Step) steps.get(0);
-            Name rootName = root.getName();
             QName stepName = step.getName();
             if (Types.equals(rootName, stepName)) {
                 LOGGER.fine("removing root name from xpath " + steps + " as it is redundant");
@@ -516,7 +534,7 @@ public class XPathUtil {
 
     private static QName deglose(
             final String prefixedName,
-            final AttributeDescriptor root,
+            final Name rootName,
             final NamespaceSupport namespaces,
             boolean isXmlAttribute) {
         if (prefixedName == null) {
@@ -533,7 +551,6 @@ public class XPathUtil {
 
         if (prefixIdx == -1) {
             localName = prefixedName;
-            final Name rootName = root.getName();
             // don't use default namespace for client properties (xml attribute), and FEATURE_LINK
             final String defaultNamespace =
                     (isXmlAttribute
@@ -586,5 +603,22 @@ public class XPathUtil {
             }
         }
         return false;
+    }
+
+    public static StepList root() {
+        return new StepList();
+    }
+
+    public static StepList addStep(StepList path, String targetNamespace, String name, int index) {
+        if (path == null) {
+            return null;
+        }
+        StepList newPath = new StepList(path);
+        newPath.add(new Step(new QName(targetNamespace, name), 1));
+        return newPath;
+    }
+
+    public static StepList addStep(StepList path, String targetNamespace, String name) {
+        return addStep(path, targetNamespace, name, 1);
     }
 }

@@ -72,6 +72,7 @@ public class ReprojectFeatureReader
     FeatureReader<SimpleFeatureType, SimpleFeature> reader;
     SimpleFeatureType schema;
     GeometryCoordinateSequenceTransformer transformer = new GeometryCoordinateSequenceTransformer();
+    boolean onlyDefault;
 
     /**
      * Direct constructor reprojecting the provided reader into the schema indicated (using the
@@ -92,17 +93,37 @@ public class ReprojectFeatureReader
             MathTransform transform) {
         this.reader = reader;
         this.schema = schema;
+        this.onlyDefault = false;
         transformer.setMathTransform(transform);
     }
+
     /**
      * Constructor that will generate schema and mathTransform for the results.
      *
      * @param reader original reader
      * @param cs Target coordinate reference system; will be used to create the target FeatureType
      *     and MathTransform used to transform the data
+     * @param onlyDefault only reproject default geometry
      */
     public ReprojectFeatureReader(
             FeatureReader<SimpleFeatureType, SimpleFeature> reader, CoordinateReferenceSystem cs)
+            throws SchemaException, OperationNotFoundException, NoSuchElementException,
+                    FactoryException {
+        this(reader, cs, false);
+    }
+
+    /**
+     * Constructor that will generate schema and mathTransform for the results.
+     *
+     * @param reader original reader
+     * @param cs Target coordinate reference system; will be used to create the target FeatureType
+     *     and MathTransform used to transform the data
+     * @param onlyDefault only reproject default geometry
+     */
+    public ReprojectFeatureReader(
+            FeatureReader<SimpleFeatureType, SimpleFeature> reader,
+            CoordinateReferenceSystem cs,
+            boolean onlyDefault)
             throws SchemaException, OperationNotFoundException, NoSuchElementException,
                     FactoryException {
         if (cs == null) {
@@ -118,7 +139,8 @@ public class ReprojectFeatureReader
                     "CoordinateSystem " + cs + " already used (check before using wrapper)");
         }
 
-        this.schema = FeatureTypes.transform(type, cs);
+        this.onlyDefault = onlyDefault;
+        this.schema = FeatureTypes.transform(type, onlyDefault, cs);
         this.reader = reader;
         transformer.setMathTransform(CRS.findMathTransform(original, cs, true));
     }
@@ -159,8 +181,9 @@ public class ReprojectFeatureReader
         Object[] attributes = next.getAttributes().toArray();
 
         try {
-            for (int i = 0; i < attributes.length; i++) {
-                if (attributes[i] instanceof Geometry) {
+            for (int i = 0; i < schema.getDescriptors().size(); i++) {
+                if (!onlyDefault && attributes[i] instanceof Geometry
+                        || schema.getDescriptor(i).equals(schema.getGeometryDescriptor())) {
                     attributes[i] = transformer.transform((Geometry) attributes[i]);
                 }
             }

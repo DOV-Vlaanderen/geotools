@@ -224,6 +224,10 @@ public class AttributeMapping {
         this.isList = isList;
     }
 
+    public void setTargetNodeInstance(AttributeType targetNodeInstance) {
+        this.targetNodeInstance = targetNodeInstance;
+    }
+
     /** ******END specific web service methods****************** */
     @Override
     public boolean equals(Object o) {

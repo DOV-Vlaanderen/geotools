@@ -111,6 +111,9 @@ public class Query {
      */
     public static Hints.Key INCLUDE_MANDATORY_PROPS = new Hints.Key(Boolean.class);
 
+    /** Hint to only reproject the default geometry, not all geometries. */
+    public static Hints.Key REPROJECT_ONLY_DEFAULT_GEOMETRY = new Hints.Key(Boolean.class);
+
     /**
      * Constant (actually null) used to represent no namespace restrictions on the returned result,
      * should be considered ANY_URI

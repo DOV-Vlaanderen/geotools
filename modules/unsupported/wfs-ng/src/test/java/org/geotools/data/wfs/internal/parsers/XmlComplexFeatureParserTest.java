@@ -209,7 +209,7 @@ public class XmlComplexFeatureParserTest {
                 reader.parse(new URL("http://www.geosciml.org/geosciml/2.0/xsd/geosciml.xsd")));
         AttributeDescriptor descriptor =
                 typeRegistry.getDescriptor(
-                        new NameImpl("urn:cgi:xmlns:CGI:GeoSciML:2.0", ":", "Borehole"), null);
+                        new NameImpl("urn:cgi:xmlns:CGI:GeoSciML:2.0", ":", "Borehole"));
         FeatureType featureType = (FeatureType) descriptor.getType();
         // System.out.println(featureType);
 
