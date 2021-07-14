@@ -43,7 +43,6 @@ import org.geotools.feature.ComplexAttributeImpl;
 import org.geotools.feature.GeometryAttributeImpl;
 import org.geotools.feature.ValidatingFeatureFactoryImpl;
 import org.geotools.feature.type.AttributeDescriptorImpl;
-import org.geotools.feature.type.GeometryTypeImpl;
 import org.geotools.gml3.GML;
 import org.geotools.xs.XSSchema;
 import org.locationtech.jts.geom.Geometry;
@@ -65,7 +64,6 @@ import org.opengis.filter.FilterFactory;
 import org.opengis.filter.expression.Expression;
 import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.Attributes;
 
 /**
@@ -89,8 +87,6 @@ public class XPath extends XPathUtil {
 
     private FeatureFactory featureFactory;
 
-    private CoordinateReferenceSystem crs;
-
     /**
      * Used to create specific attribute descriptors for {@link #set(Attribute, String, Object,
      * String, AttributeType)} when the actual attribute instance is of a derived type of the
@@ -112,10 +108,6 @@ public class XPath extends XPathUtil {
 
     public void setFilterFactory(FilterFactory ff) {
         this.FF = ff;
-    }
-
-    public void setCRS(CoordinateReferenceSystem crs) {
-        this.crs = crs;
     }
 
     public void setFeatureFactory(FeatureFactory featureFactory) {
@@ -271,22 +263,6 @@ public class XPath extends XPathUtil {
                         if (actualDescriptor instanceof GeometryDescriptor) {
                             // important to maintain CRS information encoding
                             if (Geometry.class.isAssignableFrom(targetNodeType.getBinding())) {
-                                if (!(targetNodeType instanceof GeometryType)) {
-                                    targetNodeType =
-                                            new GeometryTypeImpl(
-                                                    targetNodeType.getName(),
-                                                    targetNodeType.getBinding(),
-                                                    crs != null
-                                                            ? crs
-                                                            : ((GeometryDescriptor)
-                                                                            actualDescriptor)
-                                                                    .getCoordinateReferenceSystem(),
-                                                    targetNodeType.isIdentified(),
-                                                    targetNodeType.isAbstract(),
-                                                    targetNodeType.getRestrictions(),
-                                                    targetNodeType.getSuper(),
-                                                    targetNodeType.getDescription());
-                                }
                                 currStepDescriptor =
                                         descriptorFactory.createGeometryDescriptor(
                                                 (GeometryType) targetNodeType,
@@ -556,9 +532,6 @@ public class XPath extends XPathUtil {
                         && ((Map<Object, Object>) leafAttribute.getUserData().get(Attributes.class))
                                 .containsKey(AbstractMappingFeatureIterator.XLINK_HREF_NAME))) {
             AppSchemaAttributeBuilder builder = new AppSchemaAttributeBuilder(featureFactory);
-            if (crs != null) {
-                builder.setCRS(crs);
-            }
             builder.setDescriptor(parent.getDescriptor());
             // check for mapped type override
             builder.setType(parent.getType());

@@ -323,6 +323,18 @@ public class FeatureTypes {
     }
 
     /**
+     * Forces the specified CRS on all geometry attributes
+     *
+     * @param schema the original schema
+     * @param crs the forced crs
+     */
+    public static SimpleFeatureType transform(
+            SimpleFeatureType schema, boolean forceOnlyDefault, CoordinateReferenceSystem crs)
+            throws SchemaException {
+        return transform(schema, forceOnlyDefault, crs, false);
+    }
+
+    /**
      * Forces the specified CRS on geometry attributes (all or some, depends on the parameters).
      *
      * @param schema the original schema
@@ -332,6 +344,24 @@ public class FeatureTypes {
      */
     public static SimpleFeatureType transform(
             SimpleFeatureType schema, CoordinateReferenceSystem crs, boolean forceOnlyMissing)
+            throws SchemaException {
+        return transform(schema, false, crs, forceOnlyMissing);
+    }
+
+    /**
+     * Forces the specified CRS on geometry attributes (all or some, depends on the parameters).
+     *
+     * @param schema the original schema
+     * @param forceOnlyDefault if true, will force the specified crs only on the default geometry
+     * @param crs the forced crs
+     * @param forceOnlyMissing if true, will force the specified crs only on the attributes that do
+     *     miss one
+     */
+    public static SimpleFeatureType transform(
+            SimpleFeatureType schema,
+            boolean forceOnlyDefault,
+            CoordinateReferenceSystem crs,
+            boolean forceOnlyMissing)
             throws SchemaException {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.setName(schema.getTypeName());
@@ -344,7 +374,15 @@ public class FeatureTypes {
                 GeometryDescriptor geometryType = (GeometryDescriptor) attributeType;
 
                 tb.descriptor(geometryType);
-                if (!forceOnlyMissing || geometryType.getCoordinateReferenceSystem() == null) {
+
+                boolean forceCrs = true;
+                if (forceOnlyDefault) {
+                    forceCrs &= geometryType.equals(schema.getGeometryDescriptor());
+                }
+                if (forceOnlyMissing) {
+                    forceCrs &= geometryType.getCoordinateReferenceSystem() == null;
+                }
+                if (forceCrs) {
                     tb.crs(crs);
                 }
 

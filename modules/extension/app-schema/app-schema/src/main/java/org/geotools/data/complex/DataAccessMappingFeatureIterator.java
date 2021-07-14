@@ -49,6 +49,8 @@ import org.geotools.data.complex.config.NonFeatureTypeProxy;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.complex.filter.XPath;
 import org.geotools.data.complex.util.ComplexFeatureConstants;
+import org.geotools.data.complex.util.ComplexFeatureTypeReprojector;
+import org.geotools.data.complex.util.XPathUtil;
 import org.geotools.data.complex.util.XPathUtil.Step;
 import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.data.joining.JoiningNestedAttributeMapping;
@@ -73,9 +75,7 @@ import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.AttributeType;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.GeometryType;
 import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
 import org.opengis.filter.expression.Expression;
@@ -477,12 +477,24 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         mapping.getTargetFeature().getType().getUserData().put("targetVersion", null);
         mapping.getTargetFeature().getType().getUserData().put("targetCrs", null);
 
+        targetFeature = mapping.getTargetFeature();
         // reproject target feature
-        targetFeature = reprojectAttribute(mapping.getTargetFeature());
+        if (!(targetFeature.getType() instanceof NonFeatureTypeProxy) && reprojection != null) {
+            ComplexFeatureTypeReprojector reprojector =
+                    new ComplexFeatureTypeReprojector(reprojection);
+            XPath.StepList geometryPath = null;
+            if (mapping.getDefaultGeometryXPath() != null) {
+                geometryPath =
+                        XPathUtil.steps(
+                                targetFeature, mapping.getDefaultGeometryXPath(), namespaces);
+            }
+            targetFeature = reprojector.reprojectAttribute(targetFeature, geometryPath, true);
+        }
+        query.getHints().put(Query.REPROJECT_ONLY_DEFAULT_GEOMETRY, true);
+
         query.setMaxFeatures(dataMaxFeatures);
         sourceFeatures = mappedSource.getFeatures(query);
         if (reprojection != null) {
-            xpathAttributeBuilder.setCRS(reprojection);
             if (sourceFeatures.getSchema().getGeometryDescriptor() == null
                     || this.isReprojectionCrsEqual(
                             this.mappedSource.getSchema().getCoordinateReferenceSystem(),
@@ -1310,82 +1322,6 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
             skipNestedMapping(attMapping, sources);
         }
         return sources;
-    }
-
-    private GeometryDescriptor reprojectGeometry(GeometryDescriptor descr) {
-        if (descr == null) {
-            return null;
-        }
-        GeometryType type =
-                ftf.createGeometryType(
-                        descr.getType().getName(),
-                        descr.getType().getBinding(),
-                        reprojection,
-                        descr.getType().isIdentified(),
-                        descr.getType().isAbstract(),
-                        descr.getType().getRestrictions(),
-                        descr.getType().getSuper(),
-                        descr.getType().getDescription());
-        type.getUserData().putAll(descr.getType().getUserData());
-        GeometryDescriptor gd =
-                ftf.createGeometryDescriptor(
-                        type,
-                        descr.getName(),
-                        descr.getMinOccurs(),
-                        descr.getMaxOccurs(),
-                        descr.isNillable(),
-                        descr.getDefaultValue());
-        gd.getUserData().putAll(descr.getUserData());
-        return gd;
-    }
-
-    private FeatureType reprojectType(FeatureType type) {
-        Collection<PropertyDescriptor> schema = new ArrayList<PropertyDescriptor>();
-
-        for (PropertyDescriptor descr : type.getDescriptors()) {
-            if (descr instanceof GeometryDescriptor) {
-                schema.add(reprojectGeometry((GeometryDescriptor) descr));
-            } else {
-                schema.add(descr);
-            }
-        }
-
-        FeatureType ft;
-        if (type instanceof NonFeatureTypeProxy) {
-            ft =
-                    new NonFeatureTypeProxy(
-                            ((NonFeatureTypeProxy) type).getSubject(), mapping, schema);
-        } else {
-            ft =
-                    ftf.createFeatureType(
-                            type.getName(),
-                            schema,
-                            reprojectGeometry(type.getGeometryDescriptor()),
-                            type.isAbstract(),
-                            type.getRestrictions(),
-                            type.getSuper(),
-                            type.getDescription());
-        }
-        ft.getUserData().putAll(type.getUserData());
-        return ft;
-    }
-
-    private AttributeDescriptor reprojectAttribute(AttributeDescriptor descr) {
-
-        if (reprojection != null && descr.getType() instanceof FeatureType) {
-            AttributeDescriptor ad =
-                    ftf.createAttributeDescriptor(
-                            reprojectType((FeatureType) descr.getType()),
-                            descr.getName(),
-                            descr.getMinOccurs(),
-                            descr.getMaxOccurs(),
-                            descr.isNillable(),
-                            descr.getDefaultValue());
-            ad.getUserData().putAll(descr.getUserData());
-            return ad;
-        } else {
-            return descr;
-        }
     }
 
     protected Feature computeNext() throws IOException {

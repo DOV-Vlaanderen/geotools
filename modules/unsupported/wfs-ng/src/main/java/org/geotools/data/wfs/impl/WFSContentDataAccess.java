@@ -173,7 +173,7 @@ public class WFSContentDataAccess implements DataAccess<FeatureType, Feature> {
 
         // Create the attribute type and cast it as a FeatureType:
         // -------------------------------------------------------
-        AttributeDescriptor attributeDescriptor = typeRegistry.getDescriptor(name, null);
+        AttributeDescriptor attributeDescriptor = typeRegistry.getDescriptor(name);
         return (FeatureType) attributeDescriptor.getType();
     }
 
