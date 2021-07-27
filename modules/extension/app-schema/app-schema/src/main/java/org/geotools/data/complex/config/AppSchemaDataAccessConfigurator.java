@@ -359,14 +359,22 @@ public class AppSchemaDataAccessConfigurator {
                             // get CRS from underlying feature source and pass it on
                             AttributeMapping am = getAttributeMapping(attMappings, path);
                             if (am != null) {
-                                Object d =
-                                        am.getSourceExpression()
-                                                .evaluate(featureSource.getSchema());
-                                if (d instanceof GeometryDescriptor) {
-                                    return ((GeometryDescriptor) d).getCoordinateReferenceSystem();
+                                try {
+                                    Object d =
+                                            am.getSourceExpression()
+                                                    .evaluate(featureSource.getSchema());
+                                    if (d instanceof GeometryDescriptor) {
+                                        return ((GeometryDescriptor) d)
+                                                .getCoordinateReferenceSystem();
+                                    }
+                                } catch (Exception e) {
+                                    LOGGER.log(
+                                            Level.WARNING,
+                                            "Failed to get CRS for " + am.getTargetXPath(),
+                                            e);
                                 }
                             }
-                            // fall-back
+                            // fall-back ~ old way: assume single CRS
                             try {
                                 return featureSource.getSchema().getCoordinateReferenceSystem();
                             } catch (UnsupportedOperationException e) {

@@ -2,9 +2,14 @@ package org.geotools.data.complex.util;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import org.geotools.data.complex.util.XPathUtil.StepList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.geotools.data.complex.feature.type.FeatureTypeProxy;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.feature.type.Types;
+import org.geotools.referencing.CRS;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.AttributeType;
 import org.opengis.feature.type.ComplexType;
@@ -12,12 +17,17 @@ import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.FeatureTypeFactory;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.GeometryType;
+import org.opengis.feature.type.Name;
 import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class ComplexFeatureTypeReprojector {
 
     private FeatureTypeFactory ftf = CommonFactoryFinder.getFeatureTypeFactory(null);
+    
+    private Map<Name, AttributeType> types = new HashMap<>();
+    
+    private Set<Name> processingTypes = new HashSet<>();
 
     private CoordinateReferenceSystem crs;
 
@@ -26,22 +36,18 @@ public class ComplexFeatureTypeReprojector {
     }
 
     /**
-     * Reproject specific geometry by path and/or default geometry
+     * Reproject compatible geometries.
      *
      * @param descr the descriptor of the feature
      * @param geometryPath the path of the geometry that needs to be reprojected (or null if n/a)
      * @param reprojectDefaultDescriptor whether default geometry must be reprojected
      * @return reprojected feature type
      */
-    public AttributeDescriptor reprojectAttribute(
-            AttributeDescriptor descr,
-            XPathUtil.StepList geometryPath,
-            boolean reprojectDefaultDescriptor) {
+    public AttributeDescriptor reprojectAttribute(AttributeDescriptor descr) {
         if (!(descr.getType() instanceof ComplexType)) {
             return descr;
         }
-        AttributeType newType =
-                reprojectType(descr.getType(), geometryPath, reprojectDefaultDescriptor);
+        AttributeType newType = reprojectType(descr.getType());
 
         AttributeDescriptor ad =
                 ftf.createAttributeDescriptor(
@@ -56,36 +62,35 @@ public class ComplexFeatureTypeReprojector {
         return ad;
     }
 
-    private AttributeType reprojectType(
-            AttributeType type,
-            XPathUtil.StepList geometryPath,
-            boolean reprojectDefaultDescriptor) {
+    private AttributeType reprojectType(AttributeType type) {
         if (!(type instanceof ComplexType)) {
             return type;
         }
+        if (processingTypes.contains(type.getName())) {
+            return new FeatureTypeProxy(type.getName(), types);
+        }
+        processingTypes.add(type.getName());
         ComplexType complexType = (ComplexType) type;
         GeometryDescriptor defaultGeom = null;
         GeometryDescriptor reprojectedDefaultGeom = null;
         if (type instanceof FeatureType) {
             defaultGeom = ((FeatureType) type).getGeometryDescriptor();
-            if (reprojectDefaultDescriptor && defaultGeom != null) {
+            if (CRS.isCompatible(crs, defaultGeom.getCoordinateReferenceSystem())) {
                 reprojectedDefaultGeom = reprojectGeometry(defaultGeom);
+            } else {
+                reprojectedDefaultGeom = defaultGeom;
             }
         }
         Collection<PropertyDescriptor> schema = new ArrayList<>();
         for (PropertyDescriptor descr : complexType.getDescriptors()) {
-            if (reprojectDefaultDescriptor && descr.equals(defaultGeom)) {
+            if (descr.equals(defaultGeom)) {
                 schema.add(reprojectedDefaultGeom);
-            } else if (geometryPath != null
-                    && !geometryPath.isEmpty()
-                    && Types.equals(descr.getName(), geometryPath.get(0).getName())) {
-                if (geometryPath.size() > 1) {
-                    StepList subPath = new StepList(geometryPath);
-                    subPath.remove(0);
-                    schema.add(reprojectAttribute((AttributeDescriptor) descr, subPath, false));
-                } else {
-                    schema.add(reprojectGeometry((GeometryDescriptor) descr));
-                }
+            } else if (descr instanceof GeometryDescriptor
+                    && CRS.isCompatible(
+                            crs, ((GeometryDescriptor) descr).getCoordinateReferenceSystem())) {
+                schema.add(reprojectGeometry((GeometryDescriptor) descr));
+            } else if (descr instanceof AttributeDescriptor) {
+                schema.add(reprojectAttribute((AttributeDescriptor) descr));
             } else {
                 schema.add(descr);
             }
@@ -111,10 +116,11 @@ public class ComplexFeatureTypeReprojector {
                             type.isIdentified(),
                             type.isAbstract(),
                             type.getRestrictions(),
-                            reprojectType(type.getSuper(), geometryPath, false),
+                            reprojectType(type.getSuper()),
                             type.getDescription());
         }
         newType.getUserData().putAll(type.getUserData());
+        types.put(newType.getName(), type);
         return newType;
     }
 

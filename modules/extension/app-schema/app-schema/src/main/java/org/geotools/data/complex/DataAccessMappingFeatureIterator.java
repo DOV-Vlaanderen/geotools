@@ -50,7 +50,6 @@ import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.complex.filter.XPath;
 import org.geotools.data.complex.util.ComplexFeatureConstants;
 import org.geotools.data.complex.util.ComplexFeatureTypeReprojector;
-import org.geotools.data.complex.util.XPathUtil;
 import org.geotools.data.complex.util.XPathUtil.Step;
 import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.data.joining.JoiningNestedAttributeMapping;
@@ -482,15 +481,8 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         if (!(targetFeature.getType() instanceof NonFeatureTypeProxy) && reprojection != null) {
             ComplexFeatureTypeReprojector reprojector =
                     new ComplexFeatureTypeReprojector(reprojection);
-            XPath.StepList geometryPath = null;
-            if (mapping.getDefaultGeometryXPath() != null) {
-                geometryPath =
-                        XPathUtil.steps(
-                                targetFeature, mapping.getDefaultGeometryXPath(), namespaces);
-            }
-            targetFeature = reprojector.reprojectAttribute(targetFeature, geometryPath, true);
+            targetFeature = reprojector.reprojectAttribute(targetFeature);
         }
-        query.getHints().put(Query.REPROJECT_ONLY_DEFAULT_GEOMETRY, true);
 
         query.setMaxFeatures(dataMaxFeatures);
         sourceFeatures = mappedSource.getFeatures(query);

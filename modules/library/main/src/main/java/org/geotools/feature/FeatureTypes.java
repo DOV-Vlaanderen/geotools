@@ -36,6 +36,7 @@ import org.geotools.feature.simple.SimpleFeatureTypeImpl;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.LengthFunction;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.referencing.CRS;
 import org.geotools.util.Utilities;
 import org.geotools.util.factory.FactoryRegistryException;
 import org.geotools.util.logging.Logging;
@@ -323,18 +324,6 @@ public class FeatureTypes {
     }
 
     /**
-     * Forces the specified CRS on all geometry attributes
-     *
-     * @param schema the original schema
-     * @param crs the forced crs
-     */
-    public static SimpleFeatureType transform(
-            SimpleFeatureType schema, boolean forceOnlyDefault, CoordinateReferenceSystem crs)
-            throws SchemaException {
-        return transform(schema, forceOnlyDefault, crs, false);
-    }
-
-    /**
      * Forces the specified CRS on geometry attributes (all or some, depends on the parameters).
      *
      * @param schema the original schema
@@ -344,24 +333,6 @@ public class FeatureTypes {
      */
     public static SimpleFeatureType transform(
             SimpleFeatureType schema, CoordinateReferenceSystem crs, boolean forceOnlyMissing)
-            throws SchemaException {
-        return transform(schema, false, crs, forceOnlyMissing);
-    }
-
-    /**
-     * Forces the specified CRS on geometry attributes (all or some, depends on the parameters).
-     *
-     * @param schema the original schema
-     * @param forceOnlyDefault if true, will force the specified crs only on the default geometry
-     * @param crs the forced crs
-     * @param forceOnlyMissing if true, will force the specified crs only on the attributes that do
-     *     miss one
-     */
-    public static SimpleFeatureType transform(
-            SimpleFeatureType schema,
-            boolean forceOnlyDefault,
-            CoordinateReferenceSystem crs,
-            boolean forceOnlyMissing)
             throws SchemaException {
         SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
         tb.setName(schema.getTypeName());
@@ -375,14 +346,10 @@ public class FeatureTypes {
 
                 tb.descriptor(geometryType);
 
-                boolean forceCrs = true;
-                if (forceOnlyDefault) {
-                    forceCrs &= geometryType.equals(schema.getGeometryDescriptor());
-                }
-                if (forceOnlyMissing) {
-                    forceCrs &= geometryType.getCoordinateReferenceSystem() == null;
-                }
-                if (forceCrs) {
+                if (geometryType.getCoordinateReferenceSystem() == null
+                        || !forceOnlyMissing
+                                && CRS.isCompatible(
+                                        crs, geometryType.getCoordinateReferenceSystem())) {
                     tb.crs(crs);
                 }
 
@@ -421,6 +388,27 @@ public class FeatureTypes {
         feature.setAttribute(geomType.getLocalName(), geom);
 
         return feature;
+    }
+
+    /**
+     * Tells if there is any work to be done for reprojection, i.e. if there are any CRS that differ
+     * but are compatible.
+     *
+     * @param schema the schema to be reprojected
+     * @param crs the crs to reproject to
+     * @return answer as boolean
+     */
+    public static boolean shouldReproject(SimpleFeatureType schema, CoordinateReferenceSystem crs) {
+        for (int i = 0; i < schema.getDescriptors().size(); i++) {
+            if (schema.getDescriptor(i) instanceof GeometryDescriptor) {
+                GeometryDescriptor descr = (GeometryDescriptor) schema.getDescriptor(i);
+                if (!crs.equals(descr.getCoordinateReferenceSystem())
+                        && CRS.isCompatible(crs, descr.getCoordinateReferenceSystem())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
