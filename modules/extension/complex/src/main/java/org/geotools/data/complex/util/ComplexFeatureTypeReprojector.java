@@ -75,7 +75,7 @@ public class ComplexFeatureTypeReprojector {
         GeometryDescriptor reprojectedDefaultGeom = null;
         if (type instanceof FeatureType) {
             defaultGeom = ((FeatureType) type).getGeometryDescriptor();
-            if (CRS.isCompatible(crs, defaultGeom.getCoordinateReferenceSystem())) {
+            if (defaultGeom != null && CRS.isCompatible(crs, defaultGeom.getCoordinateReferenceSystem())) {
                 reprojectedDefaultGeom = reprojectGeometry(defaultGeom);
             } else {
                 reprojectedDefaultGeom = defaultGeom;
