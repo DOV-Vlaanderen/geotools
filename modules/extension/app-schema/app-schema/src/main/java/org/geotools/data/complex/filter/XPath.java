@@ -43,6 +43,7 @@ import org.geotools.feature.ComplexAttributeImpl;
 import org.geotools.feature.GeometryAttributeImpl;
 import org.geotools.feature.ValidatingFeatureFactoryImpl;
 import org.geotools.feature.type.AttributeDescriptorImpl;
+import org.geotools.feature.type.GeometryTypeImpl;
 import org.geotools.gml3.GML;
 import org.geotools.xs.XSSchema;
 import org.locationtech.jts.geom.Geometry;
@@ -263,6 +264,18 @@ public class XPath extends XPathUtil {
                         if (actualDescriptor instanceof GeometryDescriptor) {
                             // important to maintain CRS information encoding
                             if (Geometry.class.isAssignableFrom(targetNodeType.getBinding())) {
+                                if (!(targetNodeType instanceof GeometryType)) {
+                                    targetNodeType =
+                                            new GeometryTypeImpl(
+                                                    targetNodeType.getName(),
+                                                    targetNodeType.getBinding(),
+                                                    ((GeometryDescriptor) actualDescriptor).getCoordinateReferenceSystem(),
+                                                    targetNodeType.isIdentified(),
+                                                    targetNodeType.isAbstract(),
+                                                    targetNodeType.getRestrictions(),
+                                                    targetNodeType.getSuper(),
+                                                    targetNodeType.getDescription());
+                                }
                                 currStepDescriptor =
                                         descriptorFactory.createGeometryDescriptor(
                                                 (GeometryType) targetNodeType,
