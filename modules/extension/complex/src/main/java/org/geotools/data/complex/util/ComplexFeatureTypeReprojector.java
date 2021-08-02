@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.geotools.data.complex.feature.type.FeatureTypeProxy;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.referencing.CRS;
@@ -24,9 +23,9 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem;
 public class ComplexFeatureTypeReprojector {
 
     private FeatureTypeFactory ftf = CommonFactoryFinder.getFeatureTypeFactory(null);
-    
+
     private Map<Name, AttributeType> types = new HashMap<>();
-    
+
     private Set<Name> processingTypes = new HashSet<>();
 
     private CoordinateReferenceSystem crs;
@@ -44,9 +43,6 @@ public class ComplexFeatureTypeReprojector {
      * @return reprojected feature type
      */
     public AttributeDescriptor reprojectAttribute(AttributeDescriptor descr) {
-        if (!(descr.getType() instanceof ComplexType)) {
-            return descr;
-        }
         AttributeType newType = reprojectType(descr.getType());
 
         AttributeDescriptor ad =
@@ -58,6 +54,19 @@ public class ComplexFeatureTypeReprojector {
                         descr.isNillable(),
                         descr.getDefaultValue());
         ad.getUserData().putAll(descr.getUserData());
+        if (ad.getUserData().containsKey("substitutionGroup")) {
+            ArrayList<AttributeDescriptor> newSubstitutionGroup = new ArrayList<>();
+            ArrayList<?> substitutionGroup =
+                    (ArrayList<?>) ad.getUserData().get("substitutionGroup");
+            for (Object o : substitutionGroup) {
+                if (o instanceof GeometryDescriptor) {
+                    newSubstitutionGroup.add(reprojectGeometry((GeometryDescriptor) o));
+                } else {
+                    newSubstitutionGroup.add(reprojectAttribute((AttributeDescriptor) o));
+                }
+            }
+            ad.getUserData().put("substitutionGroup", newSubstitutionGroup);
+        }
 
         return ad;
     }
@@ -75,7 +84,8 @@ public class ComplexFeatureTypeReprojector {
         GeometryDescriptor reprojectedDefaultGeom = null;
         if (type instanceof FeatureType) {
             defaultGeom = ((FeatureType) type).getGeometryDescriptor();
-            if (defaultGeom != null && CRS.isCompatible(crs, defaultGeom.getCoordinateReferenceSystem())) {
+            if (defaultGeom != null
+                    && CRS.isCompatible(crs, defaultGeom.getCoordinateReferenceSystem())) {
                 reprojectedDefaultGeom = reprojectGeometry(defaultGeom);
             } else {
                 reprojectedDefaultGeom = defaultGeom;
@@ -85,9 +95,7 @@ public class ComplexFeatureTypeReprojector {
         for (PropertyDescriptor descr : complexType.getDescriptors()) {
             if (descr.equals(defaultGeom)) {
                 schema.add(reprojectedDefaultGeom);
-            } else if (descr instanceof GeometryDescriptor
-                    && CRS.isCompatible(
-                            crs, ((GeometryDescriptor) descr).getCoordinateReferenceSystem())) {
+            } else if (descr instanceof GeometryDescriptor) {
                 schema.add(reprojectGeometry((GeometryDescriptor) descr));
             } else if (descr instanceof AttributeDescriptor) {
                 schema.add(reprojectAttribute((AttributeDescriptor) descr));
@@ -125,6 +133,10 @@ public class ComplexFeatureTypeReprojector {
     }
 
     private GeometryDescriptor reprojectGeometry(GeometryDescriptor descr) {
+        if (!CRS.isCompatible(crs, ((GeometryDescriptor) descr).getCoordinateReferenceSystem())) {
+            return descr;
+        }
+
         GeometryType type =
                 ftf.createGeometryType(
                         descr.getType().getName(),

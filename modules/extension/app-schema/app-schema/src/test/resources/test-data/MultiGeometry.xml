@@ -57,6 +57,12 @@
                     </sourceExpression>
                 </AttributeMapping>
                 <AttributeMapping>
+                    <targetAttribute>ex:location/gml:Point</targetAttribute>
+                    <sourceExpression>
+                        <OCQL>LOCATION2</OCQL>
+                    </sourceExpression>
+                </AttributeMapping>
+                <AttributeMapping>
                     <targetAttribute>ex:nestedFeature/ex:nestedGeom/ex:geom</targetAttribute>
                     <sourceExpression>
                         <OCQL>GEOM</OCQL>
