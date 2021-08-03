@@ -54,6 +54,12 @@ public class ComplexFeatureTypeReprojector {
                         descr.isNillable(),
                         descr.getDefaultValue());
         ad.getUserData().putAll(descr.getUserData());
+        reprojectSubstitutionGroup(ad);
+
+        return ad;
+    }
+
+    protected void reprojectSubstitutionGroup(AttributeDescriptor ad) {
         if (ad.getUserData().containsKey("substitutionGroup")) {
             ArrayList<AttributeDescriptor> newSubstitutionGroup = new ArrayList<>();
             ArrayList<?> substitutionGroup =
@@ -67,8 +73,6 @@ public class ComplexFeatureTypeReprojector {
             }
             ad.getUserData().put("substitutionGroup", newSubstitutionGroup);
         }
-
-        return ad;
     }
 
     private AttributeType reprojectType(AttributeType type) {
@@ -84,11 +88,8 @@ public class ComplexFeatureTypeReprojector {
         GeometryDescriptor reprojectedDefaultGeom = null;
         if (type instanceof FeatureType) {
             defaultGeom = ((FeatureType) type).getGeometryDescriptor();
-            if (defaultGeom != null
-                    && CRS.isCompatible(crs, defaultGeom.getCoordinateReferenceSystem())) {
+            if (defaultGeom != null) {
                 reprojectedDefaultGeom = reprojectGeometry(defaultGeom);
-            } else {
-                reprojectedDefaultGeom = defaultGeom;
             }
         }
         Collection<PropertyDescriptor> schema = new ArrayList<>();
@@ -157,6 +158,7 @@ public class ComplexFeatureTypeReprojector {
                         descr.isNillable(),
                         descr.getDefaultValue());
         gd.getUserData().putAll(descr.getUserData());
+        reprojectSubstitutionGroup(gd);
         return gd;
     }
 }
