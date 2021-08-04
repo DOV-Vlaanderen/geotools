@@ -129,7 +129,7 @@ public class ComplexFeatureTypeReprojector {
                             type.getDescription());
         }
         newType.getUserData().putAll(type.getUserData());
-        types.put(newType.getName(), type);
+        types.put(newType.getName(), newType);
         return newType;
     }
 
