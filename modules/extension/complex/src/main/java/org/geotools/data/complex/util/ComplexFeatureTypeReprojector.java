@@ -75,7 +75,7 @@ public class ComplexFeatureTypeReprojector {
         }
     }
 
-    private AttributeType reprojectType(AttributeType type) {
+    public AttributeType reprojectType(AttributeType type) {
         if (!(type instanceof ComplexType)) {
             return type;
         }
@@ -133,7 +133,7 @@ public class ComplexFeatureTypeReprojector {
         return newType;
     }
 
-    private GeometryDescriptor reprojectGeometry(GeometryDescriptor descr) {
+    protected GeometryDescriptor reprojectGeometry(GeometryDescriptor descr) {
         if (!CRS.isCompatible(crs, ((GeometryDescriptor) descr).getCoordinateReferenceSystem())) {
             return descr;
         }
