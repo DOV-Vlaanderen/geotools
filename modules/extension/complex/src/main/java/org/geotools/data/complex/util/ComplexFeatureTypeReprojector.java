@@ -125,7 +125,7 @@ public class ComplexFeatureTypeReprojector {
                     ftf.createFeatureType(
                             featType.getName(),
                             schema,
-                            featType.getGeometryDescriptor(),
+                            reprojectedDefaultGeom,
                             featType.isAbstract(),
                             featType.getRestrictions(),
                             featType.getSuper(),
