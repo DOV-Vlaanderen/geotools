@@ -45,6 +45,7 @@ import org.geotools.data.Transaction;
 import org.geotools.data.complex.config.AppSchemaDataAccessConfigurator.ComplexNameImpl;
 import org.geotools.data.complex.config.JdbcMultipleValue;
 import org.geotools.data.complex.config.MultipleValue;
+import org.geotools.data.complex.config.NonFeatureTypeProxy;
 import org.geotools.data.complex.feature.type.Types;
 import org.geotools.data.complex.filter.XPath;
 import org.geotools.data.complex.util.ComplexFeatureConstants;
@@ -480,7 +481,17 @@ public class DataAccessMappingFeatureIterator extends AbstractMappingFeatureIter
         if (reprojection != null) {
             ComplexFeatureTypeReprojector reprojector =
                     new ComplexFeatureTypeReprojector(reprojection);
-            targetFeature = reprojector.reprojectAttribute(targetFeature);
+            if (targetFeature.getType() instanceof NonFeatureTypeProxy) {
+                targetFeature =
+                        NonFeatureTypeProxy.fromDescriptor(
+                                targetFeature,
+                                reprojector.reprojectType(
+                                        ((NonFeatureTypeProxy) targetFeature.getType())
+                                                .getSubject()));
+            } else {
+                targetFeature = reprojector.reprojectAttribute(targetFeature);
+            }
+            xpathAttributeBuilder.setCRS(reprojection);
         }
 
         query.setMaxFeatures(dataMaxFeatures);

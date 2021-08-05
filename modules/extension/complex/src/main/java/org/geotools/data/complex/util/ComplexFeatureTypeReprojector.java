@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.geotools.data.complex.feature.type.ComplexTypeProxy;
 import org.geotools.data.complex.feature.type.FeatureTypeProxy;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.referencing.CRS;
@@ -37,10 +38,8 @@ public class ComplexFeatureTypeReprojector {
     /**
      * Reproject compatible geometries.
      *
-     * @param descr the descriptor of the feature
-     * @param geometryPath the path of the geometry that needs to be reprojected (or null if n/a)
-     * @param reprojectDefaultDescriptor whether default geometry must be reprojected
-     * @return reprojected feature type
+     * @param descr the descriptor
+     * @return reprojected descriptor
      */
     public AttributeDescriptor reprojectAttribute(AttributeDescriptor descr) {
         AttributeType newType = reprojectType(descr.getType());
@@ -66,7 +65,7 @@ public class ComplexFeatureTypeReprojector {
                     (ArrayList<?>) ad.getUserData().get("substitutionGroup");
             for (Object o : substitutionGroup) {
                 if (o instanceof GeometryDescriptor) {
-                    newSubstitutionGroup.add(reprojectGeometry((GeometryDescriptor) o));
+                    newSubstitutionGroup.add(reprojectGeometryAttribute((GeometryDescriptor) o));
                 } else {
                     newSubstitutionGroup.add(reprojectAttribute((AttributeDescriptor) o));
                 }
@@ -75,12 +74,26 @@ public class ComplexFeatureTypeReprojector {
         }
     }
 
+    /**
+     * Reproject compatible geometries.
+     *
+     * @param type the type
+     * @return reprojected type
+     */
     public AttributeType reprojectType(AttributeType type) {
         if (!(type instanceof ComplexType)) {
-            return type;
+            if (type instanceof GeometryType) {
+                return reprojectGeometryType((GeometryType) type);
+            } else {
+                return type;
+            }
         }
         if (processingTypes.contains(type.getName())) {
-            return new FeatureTypeProxy(type.getName(), types);
+            if (type instanceof FeatureType) {
+                return new FeatureTypeProxy(type.getName(), types);
+            } else {
+                return new ComplexTypeProxy(type.getName(), types);
+            }
         }
         processingTypes.add(type.getName());
         ComplexType complexType = (ComplexType) type;
@@ -89,7 +102,7 @@ public class ComplexFeatureTypeReprojector {
         if (type instanceof FeatureType) {
             defaultGeom = ((FeatureType) type).getGeometryDescriptor();
             if (defaultGeom != null) {
-                reprojectedDefaultGeom = reprojectGeometry(defaultGeom);
+                reprojectedDefaultGeom = reprojectGeometryAttribute(defaultGeom);
             }
         }
         Collection<PropertyDescriptor> schema = new ArrayList<>();
@@ -97,7 +110,7 @@ public class ComplexFeatureTypeReprojector {
             if (descr.equals(defaultGeom)) {
                 schema.add(reprojectedDefaultGeom);
             } else if (descr instanceof GeometryDescriptor) {
-                schema.add(reprojectGeometry((GeometryDescriptor) descr));
+                schema.add(reprojectGeometryAttribute((GeometryDescriptor) descr));
             } else if (descr instanceof AttributeDescriptor) {
                 schema.add(reprojectAttribute((AttributeDescriptor) descr));
             } else {
@@ -133,25 +146,14 @@ public class ComplexFeatureTypeReprojector {
         return newType;
     }
 
-    protected GeometryDescriptor reprojectGeometry(GeometryDescriptor descr) {
-        if (!CRS.isCompatible(crs, ((GeometryDescriptor) descr).getCoordinateReferenceSystem())) {
+    protected GeometryDescriptor reprojectGeometryAttribute(GeometryDescriptor descr) {
+        if (!CRS.isCompatible(crs, descr.getCoordinateReferenceSystem())) {
             return descr;
         }
 
-        GeometryType type =
-                ftf.createGeometryType(
-                        descr.getType().getName(),
-                        descr.getType().getBinding(),
-                        crs,
-                        descr.getType().isIdentified(),
-                        descr.getType().isAbstract(),
-                        descr.getType().getRestrictions(),
-                        descr.getType().getSuper(),
-                        descr.getType().getDescription());
-        type.getUserData().putAll(descr.getType().getUserData());
         GeometryDescriptor gd =
                 ftf.createGeometryDescriptor(
-                        type,
+                        reprojectGeometryType(descr.getType()),
                         descr.getName(),
                         descr.getMinOccurs(),
                         descr.getMaxOccurs(),
@@ -160,5 +162,25 @@ public class ComplexFeatureTypeReprojector {
         gd.getUserData().putAll(descr.getUserData());
         reprojectSubstitutionGroup(gd);
         return gd;
+    }
+
+    protected GeometryType reprojectGeometryType(GeometryType type) {
+        if (type.getCoordinateReferenceSystem() != null
+                && !CRS.isCompatible(crs, type.getCoordinateReferenceSystem())) {
+            return type;
+        }
+
+        GeometryType newType =
+                ftf.createGeometryType(
+                        type.getName(),
+                        type.getBinding(),
+                        crs,
+                        type.isIdentified(),
+                        type.isAbstract(),
+                        type.getRestrictions(),
+                        type.getSuper(),
+                        type.getDescription());
+        newType.getUserData().putAll(type.getUserData());
+        return newType;
     }
 }

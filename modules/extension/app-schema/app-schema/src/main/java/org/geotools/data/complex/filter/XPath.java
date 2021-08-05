@@ -65,6 +65,7 @@ import org.opengis.filter.FilterFactory;
 import org.opengis.filter.expression.Expression;
 import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.xml.sax.Attributes;
 
 /**
@@ -95,6 +96,8 @@ public class XPath extends XPathUtil {
      */
     private FeatureTypeFactory descriptorFactory;
 
+    private CoordinateReferenceSystem crs;
+
     public XPath() {
         this.FF = CommonFactoryFinder.getFilterFactory(null);
         this.featureFactory = new ValidatingFeatureFactoryImpl();
@@ -109,6 +112,10 @@ public class XPath extends XPathUtil {
 
     public void setFilterFactory(FilterFactory ff) {
         this.FF = ff;
+    }
+
+    public void setCRS(CoordinateReferenceSystem crs) {
+        this.crs = crs;
     }
 
     public void setFeatureFactory(FeatureFactory featureFactory) {
@@ -546,6 +553,9 @@ public class XPath extends XPathUtil {
                         && ((Map<Object, Object>) leafAttribute.getUserData().get(Attributes.class))
                                 .containsKey(AbstractMappingFeatureIterator.XLINK_HREF_NAME))) {
             AppSchemaAttributeBuilder builder = new AppSchemaAttributeBuilder(featureFactory);
+            if (crs != null) {
+                builder.setCRS(crs);
+            }
             builder.setDescriptor(parent.getDescriptor());
             // check for mapped type override
             builder.setType(parent.getType());

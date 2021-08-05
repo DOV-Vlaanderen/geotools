@@ -187,7 +187,8 @@ public class ReprojectFeatureReader
 
         try {
             for (int i = 0; i < schema.getDescriptors().size(); i++) {
-                if (schema.getDescriptor(i) instanceof GeometryDescriptor) {
+                if (schema.getDescriptor(i) instanceof GeometryDescriptor
+                        && attributes[i] != null) {
                     GeometryDescriptor descr = (GeometryDescriptor) originalType.getDescriptor(i);
                     GeometryCoordinateSequenceTransformer transformer =
                             getTransformer(descr.getName());
