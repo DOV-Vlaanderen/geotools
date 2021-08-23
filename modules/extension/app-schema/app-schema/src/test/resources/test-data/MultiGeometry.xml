@@ -69,6 +69,12 @@
                     </sourceExpression>
                 </AttributeMapping>
                 <AttributeMapping>
+                    <targetAttribute>ex:nestedFeature2/ex:nestedGeom/ex:geom</targetAttribute>
+                    <sourceExpression>
+                        <OCQL>SHAPE</OCQL>
+                    </sourceExpression>
+                </AttributeMapping>
+                <AttributeMapping>
                     <targetAttribute>ex:length</targetAttribute>
                     <sourceExpression>
                         <OCQL>'1'</OCQL>

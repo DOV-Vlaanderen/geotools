@@ -147,8 +147,8 @@ public class AppSchemaDataAccess implements DataAccess<FeatureType, Feature> {
                 // a fake feature type, so attributes can be chained/nested
                 AttributeType type = mapping.getTargetFeature().getType();
                 if (!(type instanceof FeatureType)) {
-                    // edits mapping to use this type proxy
-                    NonFeatureTypeProxy.fromMapping(mapping);
+                    // nasty side-effect: constructor edits mapping to use this type proxy
+                    new NonFeatureTypeProxy(type, mapping);
                 }
             }
         } catch (RuntimeException e) {

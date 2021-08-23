@@ -89,14 +89,14 @@ public class XPath extends XPathUtil {
 
     private FeatureFactory featureFactory;
 
+    private CoordinateReferenceSystem crs;
+
     /**
      * Used to create specific attribute descriptors for {@link #set(Attribute, String, Object,
      * String, AttributeType)} when the actual attribute instance is of a derived type of the
      * corresponding one declared in the feature type.
      */
     private FeatureTypeFactory descriptorFactory;
-
-    private CoordinateReferenceSystem crs;
 
     public XPath() {
         this.FF = CommonFactoryFinder.getFilterFactory(null);

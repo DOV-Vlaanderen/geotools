@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Stack;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
@@ -37,8 +36,6 @@ import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDTypeDefinition;
 import org.geotools.data.complex.util.EmfComplexFeatureReader;
-import org.geotools.data.complex.util.XPathUtil;
-import org.geotools.data.complex.util.XPathUtil.StepList;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.AbstractLazyComplexTypeImpl;
 import org.geotools.feature.type.GeometryTypeImpl;
@@ -146,23 +143,14 @@ public class FeatureTypeRegistry {
         }
     }
 
-    public AttributeDescriptor getDescriptor(final Name descriptorName) {
-        return getDescriptor(descriptorName, (Function<StepList, CoordinateReferenceSystem>) null);
-    }
-
     public AttributeDescriptor getDescriptor(
             final Name descriptorName, CoordinateReferenceSystem crs) {
-        return getDescriptor(descriptorName, path -> crs);
-    }
-
-    public AttributeDescriptor getDescriptor(
-            final Name descriptorName, Function<StepList, CoordinateReferenceSystem> crsFunction) {
         AttributeDescriptor descriptor = descriptorRegistry.get(descriptorName);
 
         if (descriptor == null) {
             // top level elements
             XSDElementDeclaration elemDecl = getElementDeclaration(descriptorName);
-            descriptor = createAttributeDescriptor(null, elemDecl, XPathUtil.root(), crsFunction);
+            descriptor = createAttributeDescriptor(null, elemDecl, crs);
             LOGGER.finest("Registering attribute descriptor " + descriptor.getName());
             register(descriptor);
         }
@@ -188,31 +176,11 @@ public class FeatureTypeRegistry {
     }
 
     public AttributeType getAttributeType(final Name typeName) {
-        return getAttributeType(typeName, null, null, null);
-    }
-
-    public AttributeType getAttributeType(final Name typeName, XSDTypeDefinition xsdType) {
-        return getAttributeType(
-                typeName, xsdType, (Function<StepList, CoordinateReferenceSystem>) null);
+        return getAttributeType(typeName, null, null);
     }
 
     public AttributeType getAttributeType(
             final Name typeName, XSDTypeDefinition xsdType, CoordinateReferenceSystem crs) {
-        return getAttributeType(typeName, xsdType, path -> crs);
-    }
-
-    public AttributeType getAttributeType(
-            final Name typeName,
-            XSDTypeDefinition xsdType,
-            Function<StepList, CoordinateReferenceSystem> crsFunction) {
-        return getAttributeType(typeName, xsdType, XPathUtil.root(), crsFunction);
-    }
-
-    private AttributeType getAttributeType(
-            final Name typeName,
-            XSDTypeDefinition xsdType,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction) {
         AttributeType type = typeRegistry.get(typeName);
 
         if (type == null || type instanceof AbstractLazyComplexTypeImpl) {
@@ -221,7 +189,7 @@ public class FeatureTypeRegistry {
                 xsdType = getTypeDefinition(typeName);
             }
             LOGGER.finest("Creating attribute type " + typeName);
-            type = createType(typeName, xsdType, path, crsFunction, false);
+            type = createType(typeName, xsdType, crs, false);
             LOGGER.finest("Registering attribute type " + typeName);
         }
         return type;
@@ -231,8 +199,7 @@ public class FeatureTypeRegistry {
             XSDComplexTypeDefinition container,
             XSDElementDeclaration elemDecl,
             PropertyDescriptor descriptor,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction) {
+            CoordinateReferenceSystem crs) {
 
         if (descriptor.getUserData().get("substitutionGroup") != null) {
             // this has been done before
@@ -253,18 +220,11 @@ public class FeatureTypeRegistry {
             if (!(sub.getName().equals(elemDecl.getName()))
                     || !(sub.getTargetNamespace().equals(elemDecl.getTargetNamespace()))) {
                 Name elemName = Types.typeName(sub.getTargetNamespace(), sub.getName());
-                AttributeType type = getTypeOf(sub, path, crsFunction);
+                AttributeType type = getTypeOf(sub, crs);
                 if (type != null) {
                     substitutionGroup.add(
                             createAttributeDescriptor(
-                                    type,
-                                    path,
-                                    crsFunction,
-                                    elemName,
-                                    minOccurs,
-                                    maxOccurs,
-                                    nillable,
-                                    null));
+                                    type, crs, elemName, minOccurs, maxOccurs, nillable, null));
                 }
             }
         }
@@ -282,7 +242,7 @@ public class FeatureTypeRegistry {
                     // recreate lazy type to ensure everything is loaded
                     // it will eventually call this method so substitution groups will be set then
                     LOGGER.finest("Creating attribute type " + typeName);
-                    createType(typeName, typeDef, path, crsFunction, false);
+                    createType(typeName, typeDef, crs, false);
                     LOGGER.finest("Registering attribute type " + typeName);
                 } else if (attType instanceof ComplexType) {
                     // ensure substitution groups are set for children including non lazy foundation
@@ -312,11 +272,7 @@ public class FeatureTypeRegistry {
                         }
                         if (childDesc != null) {
                             setSubstitutionGroup(
-                                    (XSDComplexTypeDefinition) typeDef,
-                                    element,
-                                    childDesc,
-                                    path,
-                                    crsFunction);
+                                    (XSDComplexTypeDefinition) typeDef, element, childDesc, crs);
                         }
                     }
                 }
@@ -365,19 +321,17 @@ public class FeatureTypeRegistry {
     private AttributeDescriptor createAttributeDescriptor(
             final XSDComplexTypeDefinition container,
             final XSDElementDeclaration elemDecl,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction) {
+            CoordinateReferenceSystem crs) {
         int minOccurs = container == null ? 0 : Schemas.getMinOccurs(container, elemDecl);
         int maxOccurs =
                 container == null ? Integer.MAX_VALUE : Schemas.getMaxOccurs(container, elemDecl);
 
-        return createAttributeDescriptor(elemDecl, minOccurs, maxOccurs, path, crsFunction);
+        return createAttributeDescriptor(elemDecl, minOccurs, maxOccurs, crs);
     }
 
     private AttributeDescriptor createAttributeDescriptor(
             AttributeType type,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction,
+            CoordinateReferenceSystem crs,
             Name elemName,
             int minOccurs,
             int maxOccurs,
@@ -397,7 +351,7 @@ public class FeatureTypeRegistry {
                     new GeometryTypeImpl(
                             type.getName(),
                             type.getBinding(),
-                            crsFunction == null ? null : crsFunction.apply(path),
+                            crs,
                             type.isIdentified(),
                             type.isAbstract(),
                             type.getRestrictions(),
@@ -418,24 +372,16 @@ public class FeatureTypeRegistry {
             final XSDElementDeclaration elemDecl,
             int minOccurs,
             int maxOccurs,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction) {
+            CoordinateReferenceSystem crs) {
         String targetNamespace = elemDecl.getTargetNamespace();
         String name = elemDecl.getName();
         Name elemName = Types.typeName(targetNamespace, name);
-        AttributeType type = getTypeOf(elemDecl, path, crsFunction);
+        AttributeType type = getTypeOf(elemDecl, crs);
         boolean nillable = elemDecl.isNillable();
         Object defaultValue = null;
         AttributeDescriptor descriptor =
                 createAttributeDescriptor(
-                        type,
-                        path,
-                        crsFunction,
-                        elemName,
-                        minOccurs,
-                        maxOccurs,
-                        nillable,
-                        defaultValue);
+                        type, crs, elemName, minOccurs, maxOccurs, nillable, defaultValue);
         descriptor.getUserData().put(XSDElementDeclaration.class, elemDecl);
 
         return descriptor;
@@ -446,10 +392,7 @@ public class FeatureTypeRegistry {
      * atrribute and returns it. If it is not anonymous, looks it up on the registry and in case the
      * type does not exists in the registry uses a proxy.
      */
-    private AttributeType getTypeOf(
-            XSDElementDeclaration elemDecl,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction) {
+    private AttributeType getTypeOf(XSDElementDeclaration elemDecl, CoordinateReferenceSystem crs) {
         XSDTypeDefinition typeDefinition;
 
         // TODO REVISIT, I'm not sure this is the way to find out if the
@@ -505,15 +448,15 @@ public class FeatureTypeRegistry {
             String targetNamespace = typeDefinition.getTargetNamespace();
             String name = typeDefinition.getName();
             Name typeName = Types.typeName(targetNamespace, name);
-            type = getAttributeType(typeName, typeDefinition, path, crsFunction);
+            type = getAttributeType(typeName, typeDefinition, crs);
             if (type == null) {
-                type = createType(typeName, typeDefinition, path, crsFunction, false);
+                type = createType(typeName, typeDefinition, crs, false);
             }
         } else {
             String name = elemDecl.getName();
             String targetNamespace = elemDecl.getTargetNamespace();
             Name overrideName = Types.typeName(targetNamespace, name);
-            type = createType(overrideName, typeDefinition, path, crsFunction, true);
+            type = createType(overrideName, typeDefinition, crs, true);
         }
 
         return type;
@@ -553,8 +496,7 @@ public class FeatureTypeRegistry {
     private AttributeType createType(
             final Name assignedName,
             final XSDTypeDefinition typeDefinition,
-            StepList path,
-            Function<StepList, CoordinateReferenceSystem> crsFunction,
+            CoordinateReferenceSystem crs,
             boolean anonymous) {
 
         AttributeType attType;
@@ -581,7 +523,7 @@ public class FeatureTypeRegistry {
             String name = baseType.getName();
             if (name != null) {
                 Name baseTypeName = new NameImpl(targetNamespace, name);
-                superType = getAttributeType(baseTypeName, baseType, path, crsFunction);
+                superType = getAttributeType(baseTypeName, baseType, crs);
             }
         } else {
             LOGGER.fine(assignedName + " has no super type");
@@ -602,15 +544,7 @@ public class FeatureTypeRegistry {
             for (Iterator it = children.iterator(); it.hasNext(); ) {
                 childDecl = (XSDElementDeclaration) it.next();
                 try {
-                    descriptor =
-                            createAttributeDescriptor(
-                                    complexTypeDef,
-                                    childDecl,
-                                    XPathUtil.addStep(
-                                            path,
-                                            childDecl.getTargetNamespace(),
-                                            childDecl.getName()),
-                                    crsFunction);
+                    descriptor = createAttributeDescriptor(complexTypeDef, childDecl, crs);
                 } catch (NoSuchElementException e) {
                     String msg =
                             "Failed to create descriptor for '"
@@ -636,7 +570,6 @@ public class FeatureTypeRegistry {
                             createAttributeDescriptor(
                                     getXmlAttributeType(),
                                     null,
-                                    null,
                                     new NameImpl(att.getTargetNamespace(), "@" + att.getName()),
                                     0,
                                     1,
@@ -661,12 +594,7 @@ public class FeatureTypeRegistry {
                         break;
                     }
                 }
-                setSubstitutionGroup(
-                        complexTypeDef,
-                        elemDecl,
-                        att,
-                        XPathUtil.addStep(path, elemDecl.getTargetNamespace(), elemDecl.getName()),
-                        crsFunction);
+                setSubstitutionGroup(complexTypeDef, elemDecl, att, crs);
             }
             attType = createComplexAttributeType(assignedName, schema, complexTypeDef, superType);
         } else {

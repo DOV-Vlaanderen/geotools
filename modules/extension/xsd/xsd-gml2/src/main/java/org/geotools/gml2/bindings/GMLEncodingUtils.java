@@ -41,6 +41,7 @@ import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDTypeDefinition;
 import org.eclipse.xsd.util.XSDConstants;
 import org.geotools.feature.NameImpl;
+import org.geotools.geometry.jts.GeometryUtil;
 import org.geotools.gml2.GMLConfiguration;
 import org.geotools.util.logging.Logging;
 import org.geotools.xlink.XLINK;
@@ -209,15 +210,9 @@ public class GMLEncodingUtils {
                 // get the value
                 Object attributeValue = ((SimpleFeature) feature).getAttribute(attribute.getName());
                 if (attributeValue != null && attributeValue instanceof Geometry) {
-                    Object obj = ((Geometry) attributeValue).getUserData();
-                    Map<Object, Object> userData = new HashMap<Object, Object>();
-                    if (obj != null && obj instanceof Map) {
-                        userData.putAll((Map) obj);
-                    }
-                    userData.put(
-                            CoordinateReferenceSystem.class,
+                    GeometryUtil.setCRS(
+                            ((Geometry) attributeValue),
                             featureType.getCoordinateReferenceSystem());
-                    ((Geometry) attributeValue).setUserData(userData);
                 }
                 properties.add(new Object[] {particle, attributeValue});
             } else {
@@ -282,13 +277,29 @@ public class GMLEncodingUtils {
                 }
                 // get the value (might be multiple)
                 for (Property property : featureProperties) {
-                    setGeometriesCRS(property);
                     Object value;
                     if (property instanceof ComplexAttribute) {
                         // do not unpack complex attributes as these may have their own bindings,
                         // which
                         // will be applied by the encoder
                         value = property;
+                    } else if (property instanceof GeometryAttribute) {
+                        value = property.getValue();
+                        if (value != null) {
+                            // ensure CRS is passed to the Geometry object
+                            Geometry geometry = (Geometry) value;
+                            CoordinateReferenceSystem crs =
+                                    ((GeometryAttribute) property)
+                                            .getDescriptor()
+                                            .getCoordinateReferenceSystem();
+                            Map<Object, Object> userData = new HashMap<Object, Object>();
+                            Object obj = geometry.getUserData();
+                            if (obj != null && obj instanceof Map) {
+                                userData.putAll((Map) obj);
+                            }
+                            userData.put(CoordinateReferenceSystem.class, crs);
+                            geometry.setUserData(userData);
+                        }
                     } else {
                         // non-complex bindings are unpacked as for simple feature case
                         value = property.getValue();
@@ -299,31 +310,6 @@ public class GMLEncodingUtils {
         }
 
         return properties;
-    }
-
-    protected void setGeometriesCRS(Property property) {
-        if (property instanceof ComplexAttribute) {
-            ComplexAttribute complex = (ComplexAttribute) property;
-            for (Property subProperty : complex.getProperties()) {
-                setGeometriesCRS(subProperty);
-            }
-        } else if (property instanceof GeometryAttribute) {
-            if (property.getValue() != null) {
-                // ensure CRS is passed to the Geometry object
-                Geometry geometry = (Geometry) property.getValue();
-                CoordinateReferenceSystem crs =
-                        ((GeometryAttribute) property)
-                                .getDescriptor()
-                                .getCoordinateReferenceSystem();
-                Map<Object, Object> userData = new HashMap<Object, Object>();
-                Object obj = geometry.getUserData();
-                if (obj != null && obj instanceof Map) {
-                    userData.putAll((Map) obj);
-                }
-                userData.put(CoordinateReferenceSystem.class, crs);
-                geometry.setUserData(userData);
-            }
-        }
     }
 
     public XSDTypeDefinition createXmlTypeFromFeatureType(

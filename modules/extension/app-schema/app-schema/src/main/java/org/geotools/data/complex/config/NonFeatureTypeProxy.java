@@ -53,10 +53,25 @@ public class NonFeatureTypeProxy extends ComplexTypeProxy implements FeatureType
      *
      * @param type The underlying non feature type
      */
-    private NonFeatureTypeProxy(final AttributeType type) {
+    public NonFeatureTypeProxy(final AttributeType type, final FeatureTypeMapping mapping) {
         super(type.getName(), null);
 
         subject = type;
+
+        AttributeDescriptor originalTarget = mapping.getTargetFeature();
+        int maxOccurs = originalTarget.getMaxOccurs();
+        int minOccurs = originalTarget.getMinOccurs();
+        boolean nillable = originalTarget.isNillable();
+        Object defaultValue = originalTarget.getDefaultValue();
+        Name name = originalTarget.getName();
+
+        // create a new descriptor with the wrapped type and set it to the mapping
+        ComplexFeatureTypeFactoryImpl typeFactory = new ComplexFeatureTypeFactoryImpl();
+        AttributeDescriptor descriptor =
+                typeFactory.createAttributeDescriptor(
+                        this, name, minOccurs, maxOccurs, nillable, defaultValue);
+        descriptor.getUserData().putAll(originalTarget.getUserData());
+        mapping.setTargetFeature(descriptor);
         // smuggle FEATURE_LINK descriptor
         descriptors =
                 new ArrayList<PropertyDescriptor>() {
@@ -69,25 +84,15 @@ public class NonFeatureTypeProxy extends ComplexTypeProxy implements FeatureType
         }
     }
 
-    public static void fromMapping(final FeatureTypeMapping mapping) {
+    public NonFeatureTypeProxy(
+            final AttributeType type,
+            final FeatureTypeMapping mapping,
+            Collection<PropertyDescriptor> schema) {
+        super(type.getName(), null);
+
+        subject = type;
+
         AttributeDescriptor originalTarget = mapping.getTargetFeature();
-        mapping.setTargetFeature(
-                createDescriptor(
-                        new NonFeatureTypeProxy(originalTarget.getType()), originalTarget));
-    }
-
-    public static AttributeDescriptor fromDescriptor(final AttributeDescriptor targetFeature) {
-        return fromDescriptor(targetFeature, targetFeature.getType());
-    }
-
-    public static AttributeDescriptor fromDescriptor(
-            AttributeDescriptor targetFeature, AttributeType type) {
-        return createDescriptor(new NonFeatureTypeProxy(type), targetFeature);
-    }
-
-    private static AttributeDescriptor createDescriptor(
-            final NonFeatureTypeProxy type, AttributeDescriptor originalTarget) {
-
         int maxOccurs = originalTarget.getMaxOccurs();
         int minOccurs = originalTarget.getMinOccurs();
         boolean nillable = originalTarget.isNillable();
@@ -98,10 +103,12 @@ public class NonFeatureTypeProxy extends ComplexTypeProxy implements FeatureType
         ComplexFeatureTypeFactoryImpl typeFactory = new ComplexFeatureTypeFactoryImpl();
         AttributeDescriptor descriptor =
                 typeFactory.createAttributeDescriptor(
-                        type, name, minOccurs, maxOccurs, nillable, defaultValue);
+                        this, name, minOccurs, maxOccurs, nillable, defaultValue);
         descriptor.getUserData().putAll(originalTarget.getUserData());
-
-        return descriptor;
+        mapping.setTargetFeature(descriptor);
+        // smuggle FEATURE_LINK descriptor
+        schema.add(ComplexFeatureConstants.FEATURE_CHAINING_LINK);
+        this.descriptors = schema;
     }
 
     /** @see ComplexTypeProxy#getSubject() */

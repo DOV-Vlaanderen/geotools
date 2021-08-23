@@ -40,7 +40,6 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.XMLConstants;
@@ -312,24 +311,6 @@ public class AppSchemaDataAccessConfigurator {
         }
     }
 
-    /**
-     * Finds the attribute mapping for the target expression <code>exactPath</code>
-     *
-     * @param exactPath the xpath expression on the target schema to find the mapping for
-     * @return the attribute mapping that match 1:1 with <code>exactPath</code> or <code>null</code>
-     *     if
-     */
-    private AttributeMapping getAttributeMapping(
-            final List<AttributeMapping> attributeMappings, final StepList exactPath) {
-        for (Iterator<AttributeMapping> it = attributeMappings.iterator(); it.hasNext(); ) {
-            AttributeMapping attMapping = it.next();
-            if (exactPath.equals(attMapping.getTargetXPath())) {
-                return attMapping;
-            }
-        }
-        return null;
-    }
-
     private Set<FeatureTypeMapping> createFeatureTypeMappings(
             Map<String, DataAccess<FeatureType, Feature>> sourceDataStores) throws IOException {
         Set mappingsConfigs = config.getTypeMappings();
@@ -340,51 +321,15 @@ public class AppSchemaDataAccessConfigurator {
             TypeMapping dto = (TypeMapping) it.next();
             try {
                 FeatureSource featureSource = getFeatureSource(dto, sourceDataStores);
-                boolean isDatabaseBackend =
-                        featureSource instanceof JDBCFeatureSource
-                                || featureSource instanceof JDBCFeatureStore;
-
-                String prefixedTargetName = dto.getTargetElementName();
-                Name targetNodeName = Types.degloseName(prefixedTargetName, namespaces);
-
-                List attMappings =
-                        getAttributeMappings(
-                                targetNodeName,
-                                dto.getAttributeMappings(),
-                                dto.getItemXpath(),
-                                isDatabaseBackend);
-
-                Function<StepList, CoordinateReferenceSystem> crsFunction =
-                        path -> {
-                            // get CRS from underlying feature source and pass it on
-                            AttributeMapping am = getAttributeMapping(attMappings, path);
-                            if (am != null) {
-                                try {
-                                    Object d =
-                                            am.getSourceExpression()
-                                                    .evaluate(featureSource.getSchema());
-                                    if (d instanceof GeometryDescriptor) {
-                                        return ((GeometryDescriptor) d)
-                                                .getCoordinateReferenceSystem();
-                                    }
-                                } catch (Exception e) {
-                                    LOGGER.log(
-                                            Level.WARNING,
-                                            "Failed to get CRS for " + am.getTargetXPath(),
-                                            e);
-                                }
-                            }
-                            // fall-back ~ old way: assume single CRS
-                            try {
-                                return featureSource.getSchema().getCoordinateReferenceSystem();
-                            } catch (UnsupportedOperationException e) {
-                                // web service back end doesn't support getSchema
-                                return null;
-                            }
-                        };
-                AttributeDescriptor target = getTargetDescriptor(dto, targetNodeName, crsFunction);
-
-                setAttributeMappingTypes(dto.getAttributeMappings(), attMappings, crsFunction);
+                // get CRS from underlying feature source and pass it on
+                CoordinateReferenceSystem crs;
+                try {
+                    crs = featureSource.getSchema().getCoordinateReferenceSystem();
+                } catch (UnsupportedOperationException e) {
+                    // web service back end doesn't support getSchema
+                    crs = null;
+                }
+                AttributeDescriptor target = getTargetDescriptor(dto, crs);
 
                 // set original schema locations for encoding
                 target.getType().getUserData().put("schemaURI", schemaURIs);
@@ -393,6 +338,18 @@ public class AppSchemaDataAccessConfigurator {
                 target.getType()
                         .getUserData()
                         .put(Types.DECLARED_NAMESPACES_MAP, getNamespacesMap());
+
+                boolean isDatabaseBackend =
+                        featureSource instanceof JDBCFeatureSource
+                                || featureSource instanceof JDBCFeatureStore;
+
+                List attMappings =
+                        getAttributeMappings(
+                                target,
+                                dto.getAttributeMappings(),
+                                dto.getItemXpath(),
+                                crs,
+                                isDatabaseBackend);
 
                 // if an external index (e.g. Solr) is used in the mappings, get its data store
                 FeatureSource indexFeatureSource = getIndexFeatureSource(dto, sourceDataStores);
@@ -431,14 +388,12 @@ public class AppSchemaDataAccessConfigurator {
         return featureTypeMappings;
     }
 
-    private AttributeDescriptor getTargetDescriptor(
-            TypeMapping dto,
-            Name targetNodeName,
-            Function<StepList, CoordinateReferenceSystem> crsFunction)
+    private AttributeDescriptor getTargetDescriptor(TypeMapping dto, CoordinateReferenceSystem crs)
             throws IOException {
+        String prefixedTargetName = dto.getTargetElementName();
+        Name targetNodeName = Types.degloseName(prefixedTargetName, namespaces);
 
-        AttributeDescriptor targetDescriptor =
-                typeRegistry.getDescriptor(targetNodeName, crsFunction);
+        AttributeDescriptor targetDescriptor = typeRegistry.getDescriptor(targetNodeName, crs);
         if (targetDescriptor == null) {
             throw new NoSuchElementException(
                     "descriptor " + targetNodeName + " not found in parsed schema");
@@ -536,10 +491,10 @@ public class AppSchemaDataAccessConfigurator {
      * mapping configurations in the provided list of {@link AttributeMapping}
      */
     private List getAttributeMappings(
-            final Name root,
+            final AttributeDescriptor root,
             final List attDtos,
             String itemXpath,
-            // Function<StepList, CoordinateReferenceSystem> crsFunction,
+            CoordinateReferenceSystem crs,
             boolean isJDBC)
             throws IOException {
         List attMappings = new LinkedList();
@@ -573,6 +528,7 @@ public class AppSchemaDataAccessConfigurator {
                     validateConfiguredNamespaces(inputXPathSteps);
                 }
             }
+            String expectedInstanceTypeName = attDto.getTargetAttributeSchemaElement();
 
             final String targetXPath = attDto.getTargetAttributePath();
             final StepList targetXPathSteps = XPath.steps(root, targetXPath, namespaces);
@@ -601,8 +557,25 @@ public class AppSchemaDataAccessConfigurator {
                                             FeaturePropertyAccessorFactory.NAMESPACE_CONTEXT,
                                             this.namespaces));
 
+            final AttributeType expectedInstanceOf;
+
             final Map clientProperties = getClientProperties(attDto);
 
+            if (expectedInstanceTypeName != null) {
+                Name expectedNodeTypeName = Types.degloseName(expectedInstanceTypeName, namespaces);
+                expectedInstanceOf = typeRegistry.getAttributeType(expectedNodeTypeName, null, crs);
+                if (expectedInstanceOf == null) {
+                    String msg =
+                            "mapping expects and instance of "
+                                    + expectedNodeTypeName
+                                    + " for attribute "
+                                    + targetXPath
+                                    + " but the attribute descriptor was not found";
+                    throw new DataSourceException(msg);
+                }
+            } else {
+                expectedInstanceOf = null;
+            }
             AttributeMapping attMapping;
             String sourceElement = attDto.getLinkElement();
             if (sourceElement != null) {
@@ -661,7 +634,7 @@ public class AppSchemaDataAccessConfigurator {
                                 sourceExpression,
                                 attDto.getSourceIndex(),
                                 targetXPathSteps,
-                                null,
+                                expectedInstanceOf,
                                 isMultiValued,
                                 clientProperties,
                                 attDto.getMultipleValue());
@@ -691,48 +664,6 @@ public class AppSchemaDataAccessConfigurator {
             attMapping.setIndexField(attDto.getIndexField());
 
             attMappings.add(attMapping);
-        }
-        return attMappings;
-    }
-
-    /**
-     * Creates a list of {@link org.geotools.data.complex.AttributeMapping} from the attribute
-     * mapping configurations in the provided list of {@link AttributeMapping}
-     */
-    private List setAttributeMappingTypes(
-            final List attDtos,
-            final List attMappings,
-            Function<StepList, CoordinateReferenceSystem> crsFunction)
-            throws IOException {
-        for (int i = 0; i < attDtos.size(); i++) {
-
-            org.geotools.data.complex.config.AttributeMapping attDto;
-            attDto = (org.geotools.data.complex.config.AttributeMapping) attDtos.get(i);
-
-            String expectedInstanceTypeName = attDto.getTargetAttributeSchemaElement();
-
-            final AttributeType expectedInstanceOf;
-
-            if (expectedInstanceTypeName != null) {
-                Name expectedNodeTypeName = Types.degloseName(expectedInstanceTypeName, namespaces);
-                expectedInstanceOf =
-                        typeRegistry.getAttributeType(expectedNodeTypeName, null, crsFunction);
-                if (expectedInstanceOf == null) {
-                    String msg =
-                            "mapping expects and instance of "
-                                    + expectedNodeTypeName
-                                    + " for attribute "
-                                    + attDto.getTargetAttributePath()
-                                    + " but the attribute descriptor was not found";
-                    throw new DataSourceException(msg);
-                }
-            } else {
-                expectedInstanceOf = null;
-            }
-            AttributeMapping attMapping = (AttributeMapping) attMappings.get(i);
-            if (attDto.getLinkElement() == null) {
-                attMapping.setTargetNodeInstance(expectedInstanceOf);
-            }
         }
         return attMappings;
     }

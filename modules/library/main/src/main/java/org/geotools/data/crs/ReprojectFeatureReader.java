@@ -27,6 +27,7 @@ import org.geotools.feature.FeatureTypes;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.geometry.jts.GeometryCoordinateSequenceTransformer;
+import org.geotools.geometry.jts.GeometryUtil;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
 import org.opengis.feature.IllegalAttributeException;
@@ -194,6 +195,10 @@ public class ReprojectFeatureReader
                             getTransformer(descr.getName());
                     if (transformer != null) {
                         attributes[i] = transformer.transform((Geometry) attributes[i]);
+                        GeometryUtil.setCRS(
+                                (Geometry) attributes[i],
+                                ((GeometryDescriptor) schema.getDescriptor(i))
+                                        .getCoordinateReferenceSystem());
                     }
                 }
             }

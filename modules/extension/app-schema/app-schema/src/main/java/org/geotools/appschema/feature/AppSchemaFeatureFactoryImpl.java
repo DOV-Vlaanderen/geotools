@@ -73,7 +73,7 @@ public class AppSchemaFeatureFactoryImpl extends ValidatingFeatureFactoryImpl {
     @Override
     public GeometryAttribute createGeometryAttribute(
             Object value, GeometryDescriptor descriptor, String id, CoordinateReferenceSystem crs) {
-        if (crs != null && descriptor.getCoordinateReferenceSystem() == null) {
+        if (crs != null && !(crs.equals(descriptor.getCoordinateReferenceSystem()))) {
             // update CRS
             GeometryType origType = (GeometryType) descriptor.getType();
             GeometryType geomType =
