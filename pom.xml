@@ -381,18 +381,14 @@
   </ciManagement>
 
   <distributionManagement>
-    <repository>
-      <uniqueVersion>false</uniqueVersion>
-      <id>nexus</id>
-      <name>OSGeo Release Repository</name>
-      <url>https://repo.osgeo.org/repository/geotools-releases/</url>
-    </repository>
-    <snapshotRepository>
-      <uniqueVersion>false</uniqueVersion>
-      <id>nexus</id>
-      <name>OSGeo Snapshot Repository</name>
-      <url>https://repo.osgeo.org/repository/geotools-snapshots/</url>
-    </snapshotRepository>
+        <repository>
+          <id>release</id>
+          <url>${acd.repository.release.url}</url>
+        </repository>
+        <snapshotRepository>
+          <id>snapshot</id>
+          <url>${acd.repository.snapshot.url}</url>
+        </snapshotRepository>
   </distributionManagement>
 
   <!-- =========================================================== -->
@@ -522,6 +518,14 @@
     <jackson2.version>2.10.5</jackson2.version>
     <jackson2.databind.version>2.10.5.1</jackson2.databind.version>
     <lint>deprecation,unchecked</lint>
+    <acd.issueManagement.system>Jira</acd.issueManagement.system>
+    <acd.issueManagement.url>https://www.milieuinfo.be/jira</acd.issueManagement.url>
+    <acd.ciManagement.system>Bamboo</acd.ciManagement.system>
+    <acd.ciManagement.url>https://www.milieuinfo.be/bamboo</acd.ciManagement.url>
+    <acd.repository.url>https://www.milieuinfo.be/artifactory</acd.repository.url>
+    <acd.repository.snapshot.url>${acd.repository.url}/snapshot</acd.repository.snapshot.url>
+    <acd.repository.release.url>${acd.repository.url}/release</acd.repository.release.url>
+    <acd.scm.maven-url>scm:svn:https://svn.milieuinfo.be/productie/svn</acd.scm.maven-url>
   </properties>
 
   <!-- =========================================================== -->
