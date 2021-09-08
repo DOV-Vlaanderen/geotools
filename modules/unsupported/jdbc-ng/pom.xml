@@ -13,7 +13,7 @@
   <parent>
     <groupId>org.geotools.jdbc</groupId>
     <artifactId>gt-jdbc</artifactId>
-    <version>25.1-omgeving-0.1</version>
+    <version>25.1-omgeving-0.2-SNAPSHOT</version>
     <relativePath>../../plugin/jdbc/pom.xml</relativePath>
   </parent>
 
