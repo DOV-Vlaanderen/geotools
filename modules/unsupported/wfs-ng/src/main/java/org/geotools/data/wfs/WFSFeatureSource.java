@@ -282,46 +282,43 @@ class WFSFeatureSource extends ContentFeatureSource {
         request.setQueryType(contentType);
 
         GetFeatureResponse response = client.issueRequest(request);
-        try {
 
-            GeometryFactory geometryFactory = findGeometryFactory(localQuery.getHints());
-            GetParser<SimpleFeature> features = response.getSimpleFeatures(geometryFactory);
+        GeometryFactory geometryFactory = findGeometryFactory(localQuery.getHints());
+        GetParser<SimpleFeature> features = response.getSimpleFeatures(geometryFactory);
 
-            FeatureReader<SimpleFeatureType, SimpleFeature> reader = new WFSFeatureReader(features);
+        FeatureReader<SimpleFeatureType, SimpleFeature> reader =
+                new WFSFeatureReader(features, response);
 
-            if (request.getUnsupportedFilter() != null
-                    && request.getUnsupportedFilter() != Filter.INCLUDE) {
-                reader = new FilteringFeatureReader<>(reader, request.getUnsupportedFilter());
-            }
-
-            if (!reader.hasNext()) {
-                reader.close();
-                return new EmptyFeatureReader<>(contentType);
-            }
-
-            final SimpleFeatureType readerType = reader.getFeatureType();
-            if (!destType.equals(readerType)) {
-                final boolean cloneContents = false;
-                reader = new ReTypeFeatureReader(reader, destType, cloneContents);
-            }
-
-            reader = applyReprojectionDecorator(reader, localQuery, request);
-
-            @SuppressWarnings("PMD.CloseResource") // not managed here
-            Transaction transaction = getTransaction();
-            if (!Transaction.AUTO_COMMIT.equals(transaction)) {
-                ContentEntry entry = getEntry();
-                State state = transaction.getState(entry);
-                WFSLocalTransactionState wfsState = (WFSLocalTransactionState) state;
-                if (wfsState != null) {
-                    WFSDiff diff = wfsState.getDiff();
-                    reader = new DiffFeatureReader<>(reader, diff, localQuery.getFilter());
-                }
-            }
-            return reader;
-        } finally {
-            response.dispose();
+        if (request.getUnsupportedFilter() != null
+                && request.getUnsupportedFilter() != Filter.INCLUDE) {
+            reader = new FilteringFeatureReader<>(reader, request.getUnsupportedFilter());
         }
+
+        if (!reader.hasNext()) {
+            reader.close();
+            return new EmptyFeatureReader<>(contentType);
+        }
+
+        final SimpleFeatureType readerType = reader.getFeatureType();
+        if (!destType.equals(readerType)) {
+            final boolean cloneContents = false;
+            reader = new ReTypeFeatureReader(reader, destType, cloneContents);
+        }
+
+        reader = applyReprojectionDecorator(reader, localQuery, request);
+
+        @SuppressWarnings("PMD.CloseResource") // not managed here
+        Transaction transaction = getTransaction();
+        if (!Transaction.AUTO_COMMIT.equals(transaction)) {
+            ContentEntry entry = getEntry();
+            State state = transaction.getState(entry);
+            WFSLocalTransactionState wfsState = (WFSLocalTransactionState) state;
+            if (wfsState != null) {
+                WFSDiff diff = wfsState.getDiff();
+                reader = new DiffFeatureReader<>(reader, diff, localQuery.getFilter());
+            }
+        }
+        return reader;
     }
 
     protected String getSupportedSrsName(GetFeatureRequest request, Query query) {
