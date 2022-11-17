@@ -1499,7 +1499,8 @@ public class JoiningJDBCFeatureSource extends JDBCFeatureSource {
                 AtomicReference<PreparedFilterToSQL> toSQLref = new AtomicReference<>();
                 String sql =
                         !isNestedFilter
-                                ? createCountQuery(dialect, querySchema, jQuery, idColumnNames, toSQLref)
+                                ? createCountQuery(
+                                        dialect, querySchema, jQuery, idColumnNames, toSQLref)
                                 : createJoiningCountQuery(
                                         dialect, querySchema, jQuery, idColumnNames, toSQLref);
                 st =
