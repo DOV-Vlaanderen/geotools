@@ -213,9 +213,14 @@ public class EnsureAuthorizationTest {
         ((MockDatabaseMetaData) cx.getMetaData()).setPrimaryKeys(null, null, SAMPLE_FEATURE_NAME, key);
         MockResultSet columns = new MockResultSet("COLUMNS");
         columns.addColumn("COLUMN_NAME");
+        columns.addColumn("TYPE_NAME");
         columns.addColumn("DATA_TYPE");
-        columns.addRow(new Object[] {"ID", 1});
-        ((MockDatabaseMetaData) cx.getMetaData()).setColumns(null, null, SAMPLE_FEATURE_NAME, "ID", columns);
+        columns.addColumn("IS_NULLABLE");
+        columns.addColumn("REMARKS");
+        columns.addRow(new Object[] {"ID", "INTEGER", 1, false, ""});
+        columns.addRow(new Object[] {"dummy", "INTEGER", 1, true, ""});
+        ((MockDatabaseMetaData) cx.getMetaData())
+                .setColumns(null, null, SAMPLE_FEATURE_NAME, "ID", columns);
     }
 
     private BasicSQLDialect createBasicSQLDialect() {
