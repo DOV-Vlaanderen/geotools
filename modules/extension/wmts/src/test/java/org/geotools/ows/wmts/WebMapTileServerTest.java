@@ -51,6 +51,7 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.tile.Tile;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
@@ -325,6 +326,7 @@ public class WebMapTileServerTest {
     }
 
     @Test
+    @Ignore
     public void testGetTile()
             throws ServiceException, IOException, NoSuchAuthorityCodeException, FactoryException {
         URL url = new URL("https://sgx.geodatenzentrum.de/wmts_basemapde_schummerung");
