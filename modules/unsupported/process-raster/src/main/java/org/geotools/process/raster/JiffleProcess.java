@@ -197,7 +197,7 @@ public class JiffleProcess implements RasterProcess {
                         outputBandCount,
                         null,
                         bandTransforms,
-                nodatas,
+                        nodatas,
                         GeoTools.getDefaultHints());
 
         GridSampleDimension[] sampleDimensions = getSampleDimensions(result, outputBandNames);

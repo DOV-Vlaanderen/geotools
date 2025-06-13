@@ -357,8 +357,7 @@ public class ArcGISRestDataStore extends ContentDataStore {
         // metadata that support the ReST API (if there are no distribution
         // elements, return an error)
         Collection<WsCall> calls = new ArrayList<WsCall>();
-        datasetList
-                .stream()
+        datasetList.stream()
                 .forEach(
                         (ds) -> {
                             String ws = ArcGISRestDataStore.getWebServiceEndpoint(ds);

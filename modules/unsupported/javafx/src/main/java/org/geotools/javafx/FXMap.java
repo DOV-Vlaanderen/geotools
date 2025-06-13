@@ -21,7 +21,6 @@ package org.geotools.javafx;
  * @author Jochen Saalfeld (jochen@intevation.de)
  * @author Alexander Woestmann (awoestmann@intevation.de)
  */
-
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;

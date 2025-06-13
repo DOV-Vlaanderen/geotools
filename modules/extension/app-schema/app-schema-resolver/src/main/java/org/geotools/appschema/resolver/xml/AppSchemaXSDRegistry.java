@@ -111,7 +111,8 @@ public final class AppSchemaXSDRegistry implements XSDSchemaLocator {
                 XSDSchema schema = lookUp(resolvedSchemaLocationURI);
                 if (schema == null) { // build new one
                     try {
-                        // use same resource set to avoid infinite loop, assume schemas are not malicious
+                        // use same resource set to avoid infinite loop, assume schemas are not
+                        // malicious
                         schema = Schemas.parse(resolvedSchemaLocationURI, resourceSet, null);
                         register(schema);
                     } catch (IOException e) {
