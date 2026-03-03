@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import javax.xml.namespace.QName;
 import org.geotools.geometry.jts.CurvedGeometryFactory;
+import org.geotools.geometry.jts.MultiSurface;
 import org.geotools.gml3.ArcParameters;
 import org.geotools.gml3.GML;
 import org.geotools.xsd.AbstractComplexBinding;

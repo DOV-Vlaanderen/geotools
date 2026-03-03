@@ -219,8 +219,7 @@ public class EnsureAuthorizationTest {
         columns.addColumn("REMARKS");
         columns.addRow(new Object[] {"ID", "INTEGER", 1, false, ""});
         columns.addRow(new Object[] {"dummy", "INTEGER", 1, true, ""});
-        ((MockDatabaseMetaData) cx.getMetaData())
-                .setColumns(null, null, SAMPLE_FEATURE_NAME, "ID", columns);
+        ((MockDatabaseMetaData) cx.getMetaData()).setColumns(null, null, SAMPLE_FEATURE_NAME, "ID", columns);
     }
 
     private BasicSQLDialect createBasicSQLDialect() {
