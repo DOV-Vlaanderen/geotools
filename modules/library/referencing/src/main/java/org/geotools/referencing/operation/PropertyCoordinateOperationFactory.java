@@ -66,7 +66,7 @@ import org.geotools.util.factory.Hints;
  *
  * References:
  *
- * <p>See <a href="http://www.geoapi.org/3.0/javadoc/org/opengis/referencing/doc-files/WKT.html"><cite>Well-Known Text
+ * <p>See <a href= "http://www.geoapi.org/3.0/javadoc/org/opengis/referencing/doc-files/WKT.html"><cite>Well-Known Text
  * format</cite></a> for math transform syntax. Visit the <a href="http://www.epsg-registry.org/"><cite>EPSG Geodetic
  * Parameter Registry</cite> </a> for EPSG parameter codes and values.
  *
@@ -89,17 +89,25 @@ public abstract class PropertyCoordinateOperationFactory extends DefaultCoordina
     ReferencingFactoryContainer factories;
 
     /**
+     * Consulted when the property file has no entry for a CRS pair, so that the EPSG predefined operations are used
+     * before the analytic synthesis inherited from the default factory.
+     */
+    private final AuthorityBackedFactory authorityFactory;
+
+    /**
      * Creates a factory for the specified authority from the specified file.
      *
      * @throws IOException if the definitions can't be read.
      */
     public PropertyCoordinateOperationFactory(Hints userHints, int priority) {
         super(userHints, priority);
+        this.authorityFactory = new AuthorityBackedFactory(userHints);
         /*
          * Removes the hint processed by the super-class. This include hints like
          * LENIENT_DATUM_SHIFT, which usually don't apply to authority factories.
          * An other way to see this is to said that this class "consumed" the hints.
-         * By removing them, we increase the chances to get an empty map of remaining hints,
+         * By removing them, we increase the chances to get an empty map of remaining
+         * hints,
          * which in turn help to get the default CoordinateOperationAuthorityFactory
          * (instead of forcing a new instance).
          */
@@ -146,7 +154,16 @@ public abstract class PropertyCoordinateOperationFactory extends DefaultCoordina
             }
         }
 
-        return result;
+        // Property file definitions win, see authorityFactory for the rest of the
+        // order. Callers reaching this
+        // factory through ReferencingFactoryFinder get it alone, without the registry
+        // wide
+        // ManyCoordinateOperationFactory that would otherwise consult the EPSG
+        // operations for them.
+        if (!result.isEmpty()) {
+            return result;
+        }
+        return authorityFactory.findFromDatabase(sourceCRS, targetCRS, limit);
     }
 
     private Set<CoordinateOperation> getCoordinateOperations(
@@ -192,7 +209,8 @@ public abstract class PropertyCoordinateOperationFactory extends DefaultCoordina
 
         // Need to create a derived MathTransform that will handle axis order and units
         // as defined in CRS. Had to cast to DefaultMathTransformFactory because
-        // createBaseToDerived is not defined in MathTransformFactory interface (GeoAPI).
+        // createBaseToDerived is not defined in MathTransformFactory interface
+        // (GeoAPI).
         DefaultMathTransformFactory mtf = (DefaultMathTransformFactory) factories.getMathTransformFactory();
         MathTransform mt2 = mtf.createBaseToDerived(sourceCRS, mt, targetCRS.getCoordinateSystem());
 
