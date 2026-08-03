@@ -384,7 +384,8 @@ final class Resampler2D extends GridCoverage2D {
         ////                                                                                ////
         ////////////////////////////////////////////////////////////////////////////////////////
 
-        final CoordinateOperationFactory factory = ReferencingFactoryFinder.getCoordinateOperationFactory(hints);
+        final boolean lenient = hints != null && Boolean.TRUE.equals(hints.get(Hints.LENIENT_DATUM_SHIFT));
+        final CoordinateOperationFactory factory = CRS.getCoordinateOperationFactory(lenient);
         final MathTransformFactory mtFactory;
         if (factory instanceof AbstractCoordinateOperationFactory) {
             mtFactory = ((AbstractCoordinateOperationFactory) factory).getMathTransformFactory();
