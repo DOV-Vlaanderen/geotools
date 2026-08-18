@@ -356,7 +356,6 @@
   <modules>
     <module>build</module>
     <module>modules</module>
-    <module>release</module>
   </modules>
 
   <scm>
@@ -465,7 +464,7 @@
     <javac.version>9+181-r4173-1</javac.version>
     <maven.build.timestamp.format>dd-MMM-yyyy HH:mm</maven.build.timestamp.format>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <series>stable</series>
+    <series>archive</series>
     <!-- dependency management -->
     <batik.version>1.18</batik.version>
     <commons-beanutils.version>1.11.0</commons-beanutils.version>
@@ -473,7 +472,7 @@
     <eclipse.emf.version>2.15.0</eclipse.emf.version>
     <elasticsearch.version>7.14.0</elasticsearch.version>
     <hamcrest.version>3.0</hamcrest.version>
-    <imageio.ext.version>1.4.15</imageio.ext.version>
+    <imageio.ext.version>1.4.16</imageio.ext.version>
     <informix.jdbc.version>4.50.7.1</informix.jdbc.version>
     <jackson2.version>2.19.0</jackson2.version>
     <jackson2.databind.version>${jackson2.version}</jackson2.databind.version>
@@ -2329,6 +2328,18 @@
       <modules>
         <module>tutorials/quickstart</module>
         <module>docs</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>release</id>
+      <!-- release is here after docs in build order-->
+      <activation>
+        <property>
+          <name>all</name>
+        </property>
+      </activation>
+      <modules>
+        <module>release</module>
       </modules>
     </profile>
     <profile>

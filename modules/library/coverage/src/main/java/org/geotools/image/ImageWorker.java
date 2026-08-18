@@ -2295,6 +2295,7 @@ public class ImageWorker {
     public final ImageWorker addBands(
             RenderedImage[] bands, boolean addAlpha, Range[] nodata2, List<AffineTransform> transformationList) {
         ParameterBlock pb = new ParameterBlock();
+        pb.addSource(this.image);
         for (RenderedImage band : bands) {
             pb.addSource(band);
         }
@@ -4851,7 +4852,7 @@ public class ImageWorker {
         pb.set(destNodata, 5);
         image = JAI.create("Rescale", pb, getRenderingHints());
         if (!Double.isNaN(destNodata)) {
-            setNoData(RangeFactory.create((byte) destNodata, (byte) destNodata));
+            setNoData(RangeFactory.create(destNodata, destNodata));
         }
         return this;
     }

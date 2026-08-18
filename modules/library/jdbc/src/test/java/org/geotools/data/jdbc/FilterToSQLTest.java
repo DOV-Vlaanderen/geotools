@@ -31,9 +31,11 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.api.filter.Filter;
 import org.geotools.api.filter.FilterFactory;
 import org.geotools.api.filter.Id;
+import org.geotools.api.filter.Or;
 import org.geotools.api.filter.PropertyIsEqualTo;
 import org.geotools.api.filter.expression.Add;
 import org.geotools.api.filter.expression.Expression;
@@ -42,7 +44,10 @@ import org.geotools.api.filter.expression.Literal;
 import org.geotools.api.filter.expression.PropertyName;
 import org.geotools.api.filter.identity.FeatureId;
 import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.jdbc.EnumMapping;
+import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.jdbc.NonIncrementingPrimaryKeyColumn;
 import org.geotools.jdbc.PrimaryKey;
 import org.geotools.temporal.object.DefaultInstant;
@@ -66,6 +71,7 @@ public class FilterToSQLTest {
     private SimpleFeatureType sqlDateFType;
     private SimpleFeatureType timestampFType;
     private SimpleFeatureType dateFType;
+    private SimpleFeatureType enumFeatureType;
     private FilterToSQL encoder;
     private StringWriter output;
 
@@ -107,10 +113,45 @@ public class FilterToSQLTest {
         ftb.add("testAttr", String.class);
         stringFType = ftb.buildFeatureType();
 
+        AttributeDescriptor testAttrString = createStringEnumAttribute();
+        AttributeDescriptor testAttrNumber = createNumericEnumAttribute();
+
+        ftb = new SimpleFeatureTypeBuilder();
+        ftb.setName("testFeatureType");
+        ftb.add(testAttrString);
+        ftb.add(testAttrNumber);
+        enumFeatureType = ftb.buildFeatureType();
+
         output = new StringWriter();
         encoder = new FilterToSQL(output);
         encoder.setPrimaryKey(new PrimaryKey(
                 "foobar", Collections.singletonList(new NonIncrementingPrimaryKeyColumn("id", String.class))));
+    }
+
+    private AttributeDescriptor createNumericEnumAttribute() {
+        AttributeTypeBuilder atb = new AttributeTypeBuilder();
+        atb.setName("testNumAttr");
+        atb.setBinding(String.class);
+        EnumMapping enumVals = new EnumMapping();
+        enumVals.addMapping("1", "one");
+        enumVals.addMapping("2", "two");
+        enumVals.addMapping("3", "three");
+        AttributeDescriptor testAttr = atb.buildDescriptor("testNumAttr");
+        testAttr.getUserData().put(JDBCDataStore.JDBC_ENUM_MAP, enumVals);
+        return testAttr;
+    }
+
+    private static AttributeDescriptor createStringEnumAttribute() {
+        AttributeTypeBuilder atb = new AttributeTypeBuilder();
+        atb.setName("testStrAttr");
+        atb.setBinding(String.class);
+        EnumMapping enumVals = new EnumMapping();
+        enumVals.addMapping("one", "valueOne");
+        enumVals.addMapping("two", "valueTwo");
+        enumVals.addMapping("three", "valueThree");
+        AttributeDescriptor testAttr = atb.buildDescriptor("testStrAttr");
+        testAttr.getUserData().put(JDBCDataStore.JDBC_ENUM_MAP, enumVals);
+        return testAttr;
     }
 
     @Test
@@ -458,5 +499,95 @@ public class FilterToSQLTest {
         Id id = ff.id(Collections.singleton(ff.featureId("'FOO")));
         encoder.encode(id);
         Assert.assertEquals("WHERE (id = '''FOO')", output.toString());
+    }
+
+    @Test
+    public void testRightStringEnumLiteralIsQuoted() throws FilterToSQLException {
+        Expression propVal = ff.literal("valueTwo");
+        Expression propKey = ff.property("testStrAttr");
+        PropertyIsEqualTo filter = ff.equals(propKey, propVal);
+
+        encoder.setFeatureType(enumFeatureType);
+        encoder.encode(filter);
+
+        Assert.assertEquals("WHERE testStrAttr = 'two'", output.getBuffer().toString());
+    }
+
+    @Test
+    public void testLeftStringEnumLiteralIsQuoted() throws FilterToSQLException {
+        Expression propVal = ff.literal("valueTwo");
+        Expression propKey = ff.property("testStrAttr");
+        PropertyIsEqualTo filter = ff.equals(propVal, propKey);
+
+        encoder.setFeatureType(enumFeatureType);
+        encoder.encode(filter);
+
+        Assert.assertEquals("WHERE 'two' = testStrAttr", output.getBuffer().toString());
+    }
+
+    @Test
+    public void testRightIndexEnumLiteralNotQuoted() throws FilterToSQLException {
+        Expression propVal = ff.literal("two");
+        Expression propKey = ff.property("testNumAttr");
+        PropertyIsEqualTo filter = ff.equals(propKey, propVal);
+
+        encoder.setFeatureType(enumFeatureType);
+        encoder.encode(filter);
+
+        Assert.assertEquals("WHERE testNumAttr = 2", output.getBuffer().toString());
+    }
+
+    @Test
+    public void testLeftIndexEnumLiteralNotQuoted() throws FilterToSQLException {
+        Expression propVal = ff.literal("two");
+        Expression propKey = ff.property("testNumAttr");
+        PropertyIsEqualTo filter = ff.equals(propVal, propKey);
+
+        encoder.setFeatureType(enumFeatureType);
+        encoder.encode(filter);
+
+        Assert.assertEquals("WHERE 2 = testNumAttr", output.getBuffer().toString());
+    }
+
+    @Test
+    public void testLiteralEnumQuotedInOrChaining() throws Exception {
+        Expression propOneVal = ff.literal("one");
+        Expression propOneKey = ff.property("testStrAttr");
+        Expression propTwoVal = ff.literal("two");
+        Expression propTwoKey = ff.property("testStrAttr");
+        PropertyIsEqualTo filterOne = ff.equals(propOneVal, propOneKey);
+        PropertyIsEqualTo filterTwo = ff.equals(propTwoVal, propTwoKey);
+        Or or = ff.or(filterOne, filterTwo);
+
+        encoder.setFeatureType(enumFeatureType);
+        encoder.encode(or);
+
+        String resultingFilterString = output.getBuffer().toString();
+        LOGGER.fine("testAttr is a enum " + or + " -> " + resultingFilterString);
+        Assert.assertTrue(resultingFilterString.contains("WHEN 'one' THEN 'valueOne'"));
+        Assert.assertTrue(resultingFilterString.contains("WHEN 'two' THEN 'valueTwo'"));
+        Assert.assertTrue(resultingFilterString.contains("WHEN 'three' THEN 'valueThree'"));
+        Assert.assertTrue(resultingFilterString.contains("END IN ('one', 'two')"));
+    }
+
+    @Test
+    public void testNumberEnumNotQuotedInOrChaining() throws Exception {
+        Expression propOneVal = ff.literal("one");
+        Expression propOneKey = ff.property("testNumAttr");
+        Expression propTwoVal = ff.literal("two");
+        Expression propTwoKey = ff.property("testNumAttr");
+        PropertyIsEqualTo filterOne = ff.equals(propOneVal, propOneKey);
+        PropertyIsEqualTo filterTwo = ff.equals(propTwoVal, propTwoKey);
+        Or or = ff.or(filterOne, filterTwo);
+
+        encoder.setFeatureType(enumFeatureType);
+        encoder.encode(or);
+
+        String resultingFilterString = output.getBuffer().toString();
+        LOGGER.fine("testAttr is a enum " + or + " -> " + resultingFilterString);
+        Assert.assertTrue(resultingFilterString.contains("WHEN 1 THEN 'one'"));
+        Assert.assertTrue(resultingFilterString.contains("WHEN 2 THEN 'two'"));
+        Assert.assertTrue(resultingFilterString.contains("WHEN 3 THEN 'three'"));
+        Assert.assertTrue(resultingFilterString.contains("END IN ('one', 'two')"));
     }
 }

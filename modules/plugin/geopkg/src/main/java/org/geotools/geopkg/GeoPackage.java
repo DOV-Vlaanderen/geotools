@@ -94,6 +94,7 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.sqlite.Function;
 import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteConnection;
 
 /**
  * Provides access to a GeoPackage database.
@@ -128,6 +129,8 @@ public class GeoPackage implements Closeable {
     public static final String SPATIAL_INDEX = "gpkg_spatial_index";
 
     public static final String SCHEMA = "gpkg_schema";
+
+    static final String ALLOW_EXTENSION_LOADING_KEY = "org.geotools.sqlite.extensions";
 
     /**
      * Adding this key into a {@link FeatureType#getUserData()} with a value of true will allow creating tables without
@@ -188,6 +191,8 @@ public class GeoPackage implements Closeable {
     private boolean initialised = false;
 
     protected GeoPkgGeomWriter.Configuration writerConfig = new GeoPkgGeomWriter.Configuration();
+
+    private static SQLScriptCache SCRIPT_CACHE = new SQLScriptCache();
 
     public GeoPkgGeomWriter.Configuration getWriterConfiguration() {
         return writerConfig;
@@ -308,7 +313,14 @@ public class GeoPackage implements Closeable {
      * <p>This method creates all the necessary metadata tables.
      */
     static void init(Connection cx) throws SQLException {
-        createFunctions(cx);
+        // init portion requiring native connection
+        SQLiteConnection liteCx = unwrapConnection(cx);
+        createFunctions(liteCx);
+        // if the extensions loading is allowed, we can load the extensions
+        boolean extensionLoadingAllowed = Boolean.getBoolean(ALLOW_EXTENSION_LOADING_KEY);
+        liteCx.getDatabase().enable_load_extension(extensionLoadingAllowed);
+        LOGGER.log(Level.FINE, () -> "Loading SQLite extensions is enabled: " + extensionLoadingAllowed);
+
         // see if we have to create the table structure
         boolean initialized = false;
         try (Statement st = cx.createStatement();
@@ -319,21 +331,28 @@ public class GeoPackage implements Closeable {
                 initialized = (GPKG_100_APPID == applicationId || GPKG_120_APPID == applicationId);
             }
         }
+        boolean wasAutoCommit = cx.getAutoCommit();
         if (!initialized) {
-            runScript(EXTENSIONS + ".sql", cx);
-            runScript(SPATIAL_REF_SYS + ".sql", cx);
-            runScript(GEOMETRY_COLUMNS + ".sql", cx);
-            runScript(GEOPACKAGE_CONTENTS + ".sql", cx);
-            runScript(TILE_MATRIX_SET + ".sql", cx);
-            runScript(TILE_MATRIX_METADATA + ".sql", cx);
-            runScript(DATA_COLUMNS + ".sql", cx);
-            runScript(METADATA + ".sql", cx);
-            runScript(METADATA_REFERENCE + ".sql", cx);
-            runScript(DATA_COLUMN_CONSTRAINTS + ".sql", cx);
-            addDefaultSpatialReferences(cx);
-            // for GeoPackage 1.2 and later, set both the application id and the user_version
-            runSQL("PRAGMA application_id = " + GPKG_120_APPID + ";", cx);
-            runSQL("PRAGMA user_version = " + GPKG_120_USER_VERSION + ";", cx);
+            try {
+                if (wasAutoCommit) cx.setAutoCommit(false);
+                runScript(EXTENSIONS + ".sql", cx);
+                runScript(SPATIAL_REF_SYS + ".sql", cx);
+                runScript(GEOMETRY_COLUMNS + ".sql", cx);
+                runScript(GEOPACKAGE_CONTENTS + ".sql", cx);
+                runScript(TILE_MATRIX_SET + ".sql", cx);
+                runScript(TILE_MATRIX_METADATA + ".sql", cx);
+                runScript(DATA_COLUMNS + ".sql", cx);
+                runScript(METADATA + ".sql", cx);
+                runScript(METADATA_REFERENCE + ".sql", cx);
+                runScript(DATA_COLUMN_CONSTRAINTS + ".sql", cx);
+                addDefaultSpatialReferences(cx);
+                // for GeoPackage 1.2 and later, set both the application id and the user_version
+                runSQL("PRAGMA application_id = " + GPKG_120_APPID + ";", cx);
+                runSQL("PRAGMA user_version = " + GPKG_120_USER_VERSION + ";", cx);
+                cx.commit();
+            } finally {
+                if (wasAutoCommit) cx.setAutoCommit(wasAutoCommit);
+            }
         }
     }
 
@@ -408,6 +427,14 @@ public class GeoPackage implements Closeable {
                 },
                 1,
                 Function.FLAG_DETERMINISTIC);
+    }
+
+    /** Simple unwrapper, which assumes we have control over the {@link DataSource} and/or pooling library. */
+    private static SQLiteConnection unwrapConnection(Connection cx) {
+        while (cx instanceof DelegatingConnection) {
+            cx = ((DelegatingConnection) cx).getDelegate();
+        }
+        return (SQLiteConnection) cx;
     }
 
     /**
@@ -501,8 +528,8 @@ public class GeoPackage implements Closeable {
             }
 
             try (PreparedStatement ps = cx.prepareStatement(format(
-                    "INSERT INTO %s (srs_id, srs_name, organization, organization_coordsys_id, definition, description) "
-                            + "VALUES (?,?,?,?,?,?)",
+                    "INSERT INTO %s (srs_id, srs_name, organization, organization_coordsys_id, definition,"
+                            + " description) VALUES (?,?,?,?,?,?)",
                     SPATIAL_REF_SYS))) {
                 prepare(ps)
                         .set(srid)
@@ -633,11 +660,9 @@ public class GeoPackage implements Closeable {
             try (Connection cx = connPool.getConnection()) {
                 List<FeatureEntry> entries = new ArrayList<>();
                 String sql = format(
-                        "SELECT a.*, b.column_name, b.geometry_type_name, b.z, b.m, c.organization_coordsys_id, c.definition"
-                                + " FROM %s a, %s b, %s c"
-                                + " WHERE a.table_name = b.table_name"
-                                + " AND a.srs_id = c.srs_id"
-                                + " AND a.data_type = ?",
+                        "SELECT a.*, b.column_name, b.geometry_type_name, b.z, b.m, c.organization_coordsys_id,"
+                                + " c.definition FROM %s a, %s b, %s c WHERE a.table_name = b.table_name AND a.srs_id ="
+                                + " c.srs_id AND a.data_type = ?",
                         GEOPACKAGE_CONTENTS, GEOMETRY_COLUMNS, SPATIAL_REF_SYS);
 
                 try (PreparedStatement ps = cx.prepareStatement(sql)) {
@@ -1731,11 +1756,11 @@ public class GeoPackage implements Closeable {
     }
 
     static void runScript(String filename, Connection cx) throws SQLException {
-        SqlUtil.runScript(GeoPackage.class.getResourceAsStream(filename), cx);
+        SqlUtil.runScript(SCRIPT_CACHE.getScriptStream(filename), cx);
     }
 
     void runScript(String filename, Connection cx, Map<String, String> properties) throws SQLException {
-        SqlUtil.runScript(getClass().getResourceAsStream(filename), cx, properties);
+        SqlUtil.runScript(SCRIPT_CACHE.getScriptStream(filename), cx, properties);
     }
 
     JDBCDataStore dataStore() throws IOException {
