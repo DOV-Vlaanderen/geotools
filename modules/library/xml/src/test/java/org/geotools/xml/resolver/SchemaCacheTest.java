@@ -25,11 +25,15 @@ import static org.junit.Assert.assertTrue;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.geotools.http.commons.MultithreadedHttpClientFactory;
 import org.geotools.util.URLs;
 import org.geotools.util.factory.Hints;
+import org.geotools.util.logging.Logging;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -96,6 +100,43 @@ public class SchemaCacheTest {
                         .toString());
     }
 
+    /** A location whose path resolves above the cache directory is not served, even if the file exists. */
+    @Test
+    public void resolveLocationAboveCacheDirectory() throws Exception {
+        File root = folder.newFolder("schemas");
+        File cacheDirectory = new File(root, "cache");
+        Assert.assertTrue(cacheDirectory.mkdirs());
+        Assert.assertTrue(new File(root, "other.xsd").createNewFile());
+        String location = "http://schemas.example.org/../../../../other.xsd";
+        SchemaCache cache = new SchemaCache(cacheDirectory, false);
+
+        FileNotFoundException e =
+                Assert.assertThrows(FileNotFoundException.class, () -> cache.resolveLocation(location));
+        Assert.assertEquals("Schema location restricted to cache directory", e.getMessage());
+
+        RuntimeException re =
+                Assert.assertThrows(RuntimeException.class, () -> new SchemaResolver(cache).resolve(location));
+        Assert.assertEquals("Failed to resolve " + location, re.getMessage());
+        Assert.assertEquals(FileNotFoundException.class, re.getCause().getClass());
+    }
+
+    /** A sibling directory whose name starts with the cache directory name is outside the cache. */
+    @Test
+    public void resolveLocationInSiblingDirectory() throws Exception {
+        File root = folder.newFolder("sibling");
+        File cacheDirectory = new File(root, "cache");
+        Assert.assertTrue(cacheDirectory.mkdirs());
+        File sibling = new File(root, "cache-old");
+        Assert.assertTrue(sibling.mkdirs());
+        Assert.assertTrue(new File(sibling, "other.xsd").createNewFile());
+        SchemaCache cache = new SchemaCache(cacheDirectory, false);
+
+        FileNotFoundException e = Assert.assertThrows(
+                FileNotFoundException.class,
+                () -> cache.resolveLocation("http://schemas.example.org/../../../../cache-old/other.xsd"));
+        Assert.assertEquals("Schema location restricted to cache directory", e.getMessage());
+    }
+
     /**
      * Tests if current data directory have workspace and styles directories and workspace directory has default.xml
      * file inside.
@@ -122,12 +163,19 @@ public class SchemaCacheTest {
     /** Test that a circular redirect is not followed indefinitely when using the multithreaded HTTP client */
     @Test
     public void circularRedirectMultithreadedHttpClient() {
-        Hints.putSystemDefault(Hints.HTTP_CLIENT_FACTORY, MultithreadedHttpClientFactory.class);
-        String redirectUrl = "http://localhost:" + service.port() + "/test";
-        service.stubFor(
-                get(urlEqualTo("/test")).willReturn(aResponse().withStatus(301).withHeader("Location", redirectUrl)));
-        byte[] responseBody = SchemaCache.download(redirectUrl);
-        Assert.assertNull(responseBody);
-        Hints.removeSystemDefault(Hints.HTTP_CLIENT_FACTORY);
+        final Logger LOGGER = Logging.getLogger("org.geotools.xml.resolver");
+        Level level = LOGGER.getLevel();
+        try {
+            LOGGER.setLevel(Level.OFF);
+            Hints.putSystemDefault(Hints.HTTP_CLIENT_FACTORY, MultithreadedHttpClientFactory.class);
+            String redirectUrl = "http://localhost:" + service.port() + "/test";
+            service.stubFor(get(urlEqualTo("/test"))
+                    .willReturn(aResponse().withStatus(301).withHeader("Location", redirectUrl)));
+            byte[] responseBody = SchemaCache.download(redirectUrl);
+            Assert.assertNull(responseBody);
+            Hints.removeSystemDefault(Hints.HTTP_CLIENT_FACTORY);
+        } finally {
+            LOGGER.setLevel(level);
+        }
     }
 }
